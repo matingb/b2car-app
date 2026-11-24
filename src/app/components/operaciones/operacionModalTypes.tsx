@@ -74,6 +74,8 @@ export function createEmptyLinea(stockId = ""): OperacionLineaDraft {
     cantidad: 1,
     cantidadEntregar: 1,
     unitario: 0,
+    subtotal: 0,
+    descuento: 0,
     total: 0,
   };
 }

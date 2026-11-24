@@ -49,7 +49,8 @@ BEGIN
           p_categoria_arreglo_id := NULLIF(v_linea ->> 'categoria_arreglo_id', '')::uuid,
           p_empleado_id := NULLIF(v_linea ->> 'empleado_id', '')::uuid,
           p_cuenta_id := NULLIF(v_linea ->> 'cuenta_id', '')::uuid,
-          p_idempotency_key := NULLIF(v_linea ->> 'idempotency_key', '')::uuid
+          p_idempotency_key := NULLIF(v_linea ->> 'idempotency_key', '')::uuid,
+          p_descuento := COALESCE((v_linea ->> 'descuento')::numeric, 0)
         );
       ELSE
         PERFORM public.rpc_crear_producto_inline_para_arreglo(
@@ -63,7 +64,8 @@ BEGIN
           p_categoria_arreglo_id := NULLIF(v_linea ->> 'categoria_arreglo_id', '')::uuid,
           p_empleado_id := NULLIF(v_linea ->> 'empleado_id', '')::uuid,
           p_cuenta_id := NULLIF(v_linea ->> 'cuenta_id', '')::uuid,
-          p_idempotency_key := NULLIF(v_linea ->> 'idempotency_key', '')::uuid
+          p_idempotency_key := NULLIF(v_linea ->> 'idempotency_key', '')::uuid,
+          p_descuento := COALESCE((v_linea ->> 'descuento')::numeric, 0)
         );
       END IF;
     END LOOP;

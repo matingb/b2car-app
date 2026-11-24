@@ -162,6 +162,59 @@ describe("ArregloWhatsAppModal", () => {
     expect(textarea.value).toContain("• Mano de obra frenos x1 - $12.000");
   });
 
+  it("permite alternar el toggle de descuento y deshabilitarlo cuando no hay precios", async () => {
+    const dataConDescuento = {
+      ...sampleData,
+      detalles: [
+        {
+          ...sampleData.detalles[0],
+          descuento: 2000,
+        },
+      ],
+      asignaciones: [
+        {
+          ...sampleData.asignaciones[0],
+          lineas: [
+            {
+              ...sampleData.asignaciones[0].lineas[0],
+              descuento: 1000,
+            },
+          ],
+        },
+      ],
+    };
+
+    render(
+      <ArregloWhatsAppModal
+        open
+        onClose={vi.fn()}
+        data={dataConDescuento}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("modal-cliente-nombre")).toHaveTextContent("Carlos Gómez");
+    });
+
+    // Activar precios unitarios
+    const togglePrecios = screen.getByRole("checkbox", { name: "Precios unitarios" });
+    fireEvent.click(togglePrecios);
+
+    const textarea = screen.getByPlaceholderText("El mensaje de WhatsApp aparecerá aquí...") as HTMLTextAreaElement;
+    // Con descuento activo por defecto:
+    expect(textarea.value).toContain("• Pastillas de freno x2 - ~$16.000~ $15.000");
+    expect(textarea.value).toContain("• Mano de obra frenos x1 - ~$12.000~ $10.000");
+
+    // Toggle de descuento presente
+    const toggleDescuento = screen.getByRole("checkbox", { name: "Mostrar descuento" });
+    expect(toggleDescuento).toHaveAttribute("aria-checked", "true");
+
+    // Al apagar mostrar descuento
+    fireEvent.click(toggleDescuento);
+    expect(textarea.value).toContain("• Pastillas de freno x2 - $15.000");
+    expect(textarea.value).not.toContain("~$16.000~");
+  });
+
   it("permite apagar el total general", async () => {
     render(
       <ArregloWhatsAppModal

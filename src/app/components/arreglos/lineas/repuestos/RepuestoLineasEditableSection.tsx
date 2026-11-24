@@ -3,42 +3,33 @@
 import React, { useMemo } from "react";
 import { Plus, Package } from "lucide-react";
 import { formatArs } from "@/lib/format";
-import { safeInt, safeNumber } from "@/lib/numbers";
+import { safeNumber } from "@/lib/numbers";
 import { COLOR } from "@/theme/theme";
-import Autocomplete, { type AutocompleteOption } from "@/app/components/ui/Autocomplete";
+import type { AutocompleteOption } from "@/app/components/ui/Autocomplete";
 import { buildStockAutocompleteOptions } from "@/app/components/stock/StockBreakdownBadge";
 import { useInventario } from "@/app/providers/InventarioProvider";
 import LineasSectionShell from "@/app/components/arreglos/lineas/shared/LineasSectionShell";
 import { styles } from "@/app/components/arreglos/lineas/shared/lineaStyles";
 import { useInlineEditor } from "@/app/components/arreglos/lineas/shared/useInlineEditor";
-import { InlineEditorProvider } from "@/app/components/arreglos/lineas/shared/InlineEditorContext";
-import ConflictWarning from "@/app/components/arreglos/lineas/shared/ConflictWarning";
-import EditableLineaCard from "@/app/components/arreglos/lineas/shared/EditableLineaCard";
-import NewProductLineaCard from "@/app/components/arreglos/lineas/shared/NewProductLineaCard";
-import NewProductBadge from "@/app/components/arreglos/lineas/repuestos/NewProductBadge";
-import NewProductFields from "@/app/components/arreglos/lineas/repuestos/NewProductFields";
 import ReadOnlyLineaCard from "@/app/components/arreglos/lineas/shared/ReadOnlyLineaCard";
-import CategoriaArregloSelect from "@/app/components/arreglos/lineas/shared/CategoriaArregloSelect";
-import EmpleadoSelect from "@/app/components/arreglos/lineas/shared/EmpleadoSelect";
 import CategoriaChip from "@/app/components/arreglos/lineas/shared/CategoriaChip";
 import EmpleadoChip from "@/app/components/arreglos/lineas/shared/EmpleadoChip";
-import StockPurchaseHint from "@/app/components/arreglos/lineas/repuestos/StockPurchaseHint";
-import { generateProductCode } from "@/app/components/arreglos/lineas/repuestos/repuestoCode";
 import {
   NEW_PRODUCT_VALUE,
-  applyStockSelection,
-  computeStockState,
-  getNewProductConflictMessage,
   validateRepuestoDraft,
 } from "@/app/components/arreglos/lineas/repuestos/repuestoValidator";
 import { useTenant } from "@/app/providers/TenantProvider";
 import { Permission } from "@/lib/permissions";
+import RepuestoEditor from "./RepuestoEditor";
 
 export type RepuestoLinea = {
   id: string;
   stock_id: string;
   cantidad: number;
   monto_unitario: number;
+  subtotal?: number;
+  descuento?: number;
+  total?: number;
   precioCompra?: number | null;
   tipo?: "existente" | "nuevo";
   producto?: { nombre?: string; codigo?: string | null } | null;
@@ -56,6 +47,7 @@ export type RepuestoDraft = {
   stockId: string;
   cantidad: string;
   montoUnitario: string;
+  descuento: string;
   codigo: string;
   nombre: string;
   precioCompra: string;
@@ -73,6 +65,7 @@ export type RepuestoUpsertInput =
       stock_id: string;
       cantidad: number;
       monto_unitario: number;
+      descuento?: number;
       precio_compra?: number | null;
       cuenta_financiera_id?: string | null;
       idempotency_key?: string | null;
@@ -88,6 +81,7 @@ export type RepuestoUpsertInput =
       precio_venta: number;
       cantidad: number;
       monto_unitario: number;
+      descuento?: number;
       cuenta_financiera_id?: string | null;
       idempotency_key?: string | null;
       categoria_arreglo_id?: string | null;
@@ -108,6 +102,21 @@ type Props = {
   onDelete: (id: string) => void | Promise<void>;
 };
 
+export function calculateRepuestosSubtotal(items: RepuestoLinea[]): number {
+  return items.reduce(
+    (acc, i) =>
+      acc +
+      (i.total != null
+        ? i.total
+        : Math.max(
+            0,
+            (Number(i.cantidad) || 0) * (Number(i.monto_unitario) || 0) -
+              (Number(i.descuento) || 0)
+          )),
+    0
+  );
+}
+
 export default function RepuestoLineasEditableSection({
   title = "Repuestos",
   emptyText = "Sin repuestos asignados.",
@@ -125,10 +134,7 @@ export default function RepuestoLineasEditableSection({
   const canEditPrices = hasPermission(Permission.ArreglosPreciosEdit);
   const { inventario, isLoading } = useInventario(tallerId ?? undefined);
 
-  const subtotalValue = useMemo(
-    () => items.reduce((acc, i) => acc + (Number(i.cantidad) || 0) * (Number(i.monto_unitario) || 0), 0),
-    [items]
-  );
+  const subtotalValue = useMemo(() => calculateRepuestosSubtotal(items), [items]);
   const subtotal = useMemo(
     () => formatArs(subtotalValue, { maxDecimals: 0, minDecimals: 0 }),
     [subtotalValue]
@@ -146,9 +152,6 @@ export default function RepuestoLineasEditableSection({
       ],
     });
   }, [inventario]);
-
-  const conflictMessageFor = (codigo: string, currentItemId?: string) =>
-    getNewProductConflictMessage(codigo, { items, inventario }, currentItemId);
 
   const {
     editingId,
@@ -170,6 +173,7 @@ export default function RepuestoLineasEditableSection({
       stockId: "",
       cantidad: "1",
       montoUnitario: "",
+      descuento: "0",
       codigo: "",
       nombre: "",
       precioCompra: "",
@@ -187,6 +191,7 @@ export default function RepuestoLineasEditableSection({
         stockId: item.tipo === "nuevo" ? NEW_PRODUCT_VALUE : item.stock_id,
         cantidad: String(item.cantidad ?? 1),
         montoUnitario: String(item.monto_unitario ?? ""),
+        descuento: String(item.descuento ?? 0),
         codigo: item.nuevoProducto?.codigo ?? "",
         nombre: item.nuevoProducto?.nombre ?? "",
         precioCompra: item.nuevoProducto?.precioCompra != null
@@ -222,170 +227,20 @@ export default function RepuestoLineasEditableSection({
 
   const canInteract = !disabled && !readOnly && !submitting;
 
-  const findStock = (stockId: string) => inventario.find((s) => s.id === stockId) ?? null;
-
-  const updateDraft = (patch: Partial<RepuestoDraft>) => setDraft((p) => ({ ...p, ...patch }));
-
-  const renderEditor = (item: RepuestoLinea | null) => {
-    const stockState = computeStockState(item, draft, items, inventario, deferred);
-    const validation = validateCurrent();
-    const newProductConflict = stockState.isNewProduct
-      ? conflictMessageFor(draft.codigo, item?.id)
-      : null;
-    const newProductQty = safeInt(draft.cantidad);
-
-    const extraHint = submitting ? undefined
-      : stockState.hasExistingRepuestoConflict ? (
-        <ConflictWarning message="El repuesto ya se encuentra en el arreglo" />
-      ) : stockState.hasStockIssue ? (
-        <StockPurchaseHint
-          stockActual={stockState.stockActual}
-          faltante={stockState.faltante}
-          precioCompra={safeNumber(draft.precioCompra)}
-          deferred={deferred}
-        />
-      ) : stockState.isNewProduct && !newProductConflict && newProductQty > 0 ? (
-        <StockPurchaseHint
-          stockActual={0}
-          faltante={newProductQty}
-          precioCompra={safeNumber(draft.precioCompra)}
-          deferred={deferred}
-        />
-      ) : undefined;
-
-    const tipoEmpleadoSelectors = (
-      <>
-        <CategoriaArregloSelect
-          value={draft.categoriaArregloId}
-          onChange={(categoriaArregloId) => updateDraft({ categoriaArregloId })}
-          disabled={!canInteract}
-        />
-        <EmpleadoSelect
-          value={draft.empleadoId}
-          onChange={(empleadoId) => updateDraft({ empleadoId })}
-          disabled={!canInteract}
-        />
-      </>
-    );
-
-    const newProductHeader = (
-      <>
-        <NewProductBadge
-          onClose={
-            stockState.mode === "add"
-              ? () =>
-                  updateDraft({
-                    stockId: "",
-                    codigo: "",
-                    nombre: "",
-                    precioCompra: "",
-                    precioVenta: "",
-                    precioVentaTouched: false,
-                    codigoTouched: false,
-                  })
-              : undefined
-          }
-        />
-        <CategoriaArregloSelect
-          value={draft.categoriaArregloId}
-          onChange={(categoriaArregloId) => updateDraft({ categoriaArregloId })}
-          disabled={!canInteract}
-        />
-        <EmpleadoSelect
-          value={draft.empleadoId}
-          onChange={(empleadoId) => updateDraft({ empleadoId })}
-          disabled={!canInteract}
-        />
-      </>
-    );
-
-    const card = stockState.isNewProduct ? (
-      <NewProductLineaCard
-        header={newProductHeader}
-        top={
-          <NewProductFields
-            codigo={draft.codigo}
-            nombre={draft.nombre}
-            conflictMessage={submitting ? null : conflictMessageFor(draft.codigo, item?.id)}
-            onCodigoChange={(v) => updateDraft({ codigo: v, codigoTouched: v.trim().length > 0 })}
-            onNombreChange={(v) => {
-              const patch: Partial<RepuestoDraft> = { nombre: v };
-              if (!draft.codigoTouched) {
-                patch.codigo = generateProductCode(v, { items, inventario });
-              }
-              updateDraft(patch);
-            }}
-            disabled={!canInteract || !tallerId}
-          />
-        }
-        draft={{
-          qty: draft.cantidad,
-          purchaseUnit: draft.precioCompra,
-          saleUnit: draft.precioVenta,
-        }}
-        onDraftChange={(patch) => {
-          setDraft((p) => {
-            const next: RepuestoDraft = { ...p };
-            if (patch.qty !== undefined) next.cantidad = patch.qty;
-            if (patch.saleUnit !== undefined) {
-              next.precioVenta = patch.saleUnit;
-              next.precioVentaTouched = true;
-            }
-            if (patch.purchaseUnit !== undefined) {
-              next.precioCompra = patch.purchaseUnit;
-              if (!p.precioVentaTouched) next.precioVenta = patch.purchaseUnit;
-            }
-            return next;
-          });
-        }}
-        extra={extraHint}
-      />
-    ) : (
-      <EditableLineaCard
-        top={
-          <Autocomplete
-            options={stockOptions}
-            value={draft.stockId}
-            onChange={(v) => {
-              if (stockState.mode === "edit") return;
-              setDraft((p) => applyStockSelection(v, p, inventario));
-            }}
-            placeholder={isLoading ? "Cargando inventario..." : "Buscar producto..."}
-            disabled={stockState.mode === "edit" || !tallerId || isLoading || !canInteract}
-            style={{ width: "100%" }}
-          />
-        }
-        draft={{
-          qty: draft.cantidad,
-          unit: draft.montoUnitario,
-          purchaseUnit: draft.precioCompra,
-        }}
-        onDraftChange={(patch) => {
-          const next: Partial<RepuestoDraft> = {};
-          if (patch.qty !== undefined) next.cantidad = patch.qty;
-          if (patch.unit !== undefined) next.montoUnitario = patch.unit;
-          if (patch.purchaseUnit !== undefined) next.precioCompra = patch.purchaseUnit;
-          updateDraft(next);
-        }}
-        showPurchaseUnit={stockState.showPurchaseField}
-        selectors={tipoEmpleadoSelectors}
-        extra={extraHint}
-      />
-    );
-
-    return (
-      <InlineEditorProvider
-        kind="repuestos"
-        mode={stockState.mode}
-        submitting={submitting}
-        interactionEnabled={canInteract && !!tallerId}
-        validation={validation}
-        onConfirm={save}
-        onCancel={cancel}
-      >
-        {card}
-      </InlineEditorProvider>
-    );
+  const editorProps = {
+    draft,
+    setDraft,
+    items,
+    inventario,
+    stockOptions,
+    tallerId,
+    isLoadingInventario: isLoading,
+    canInteract,
+    submitting,
+    deferred,
+    validation: validateCurrent(),
+    onConfirm: save,
+    onCancel: cancel,
   };
 
   return (
@@ -409,10 +264,11 @@ export default function RepuestoLineasEditableSection({
         {items.map((item) => {
           if (editingId !== item.id) {
             const code = item.nuevoProducto?.codigo ?? item.producto?.codigo ?? null;
+            const stockMatch = inventario.find((s) => s.id === item.stock_id);
             const titleText =
               item.nuevoProducto?.nombre ||
               item.producto?.nombre ||
-              findStock(item.stock_id)?.nombre ||
+              stockMatch?.nombre ||
               "Producto";
             return (
               <ReadOnlyLineaCard
@@ -424,9 +280,17 @@ export default function RepuestoLineasEditableSection({
                     {code ? <span style={styles.itemSubTitleCode}>{code}</span> : null}
                   </div>
                 }
-                subtitle={<><CategoriaChip categoriaArregloId={item.categoriaArregloId} /><EmpleadoChip empleadoId={item.empleadoId} /></>}
+                subtitle={
+                  <>
+                    <CategoriaChip categoriaArregloId={item.categoriaArregloId} />
+                    <EmpleadoChip empleadoId={item.empleadoId} />
+                  </>
+                }
                 cantidad={Number(item.cantidad) || 0}
                 unitario={Number(item.monto_unitario) || 0}
+                subtotal={item.subtotal}
+                descuento={item.descuento}
+                total={item.total}
                 onEdit={() => startEdit(item)}
                 onDelete={() => onDelete(item.id)}
                 canInteract={canInteract && !isEditing && !!tallerId}
@@ -434,11 +298,15 @@ export default function RepuestoLineasEditableSection({
               />
             );
           }
-          return <div key={item.id}>{renderEditor(item)}</div>;
+          return (
+            <div key={item.id}>
+              <RepuestoEditor item={item} {...editorProps} />
+            </div>
+          );
         })}
 
         {adding ? (
-          renderEditor(null)
+          <RepuestoEditor item={null} {...editorProps} />
         ) : readOnly ? null : (
           <button
             type="button"

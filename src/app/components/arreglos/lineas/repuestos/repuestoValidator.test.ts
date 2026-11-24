@@ -15,6 +15,7 @@ const emptyDraft: RepuestoDraft = {
   stockId: "",
   cantidad: "1",
   montoUnitario: "",
+  descuento: "",
   codigo: "",
   nombre: "",
   precioCompra: "",
@@ -340,6 +341,72 @@ describe("validateRepuestoDraft", () => {
       expect(result).toMatchObject({
         ok: true,
         value: { precio_compra: 80 },
+      });
+    });
+
+    describe("validación de descuento", () => {
+      const envConStock: RepuestoValidatorEnv = {
+        ...baseEnv,
+        inventario: [stock({ id: "s1", stockActual: 10 })],
+      };
+
+      it("rechaza descuento negativo", () => {
+        const result = validateRepuestoDraft(
+          { ...existingBase, cantidad: "2", montoUnitario: "1000", descuento: "-50" },
+          { mode: "add" },
+          envConStock,
+        );
+        expect(result).toEqual({
+          ok: false,
+          message: "Descuento inválido",
+        });
+      });
+
+      it("rechaza descuento mayor al subtotal de la línea", () => {
+        // subtotal = 2 * 1000 = 2000
+        const result = validateRepuestoDraft(
+          { ...existingBase, cantidad: "2", montoUnitario: "1000", descuento: "2500" },
+          { mode: "add" },
+          envConStock,
+        );
+        expect(result).toEqual({
+          ok: false,
+          message: "El descuento no puede superar el subtotal",
+        });
+      });
+
+      it("acepta un descuento válido y lo incluye en el payload", () => {
+        const result = validateRepuestoDraft(
+          { ...existingBase, cantidad: "2", montoUnitario: "1000", descuento: "300" },
+          { mode: "add" },
+          envConStock,
+        );
+        expect(result).toMatchObject({
+          ok: true,
+          value: {
+            descuento: 300,
+          },
+        });
+      });
+
+      it("en modo edit con descuento 0, envía explícitamente descuento: 0 para resetearlo", () => {
+        const target = item({ id: "a", stock_id: "s1", cantidad: 2, monto_unitario: 1000, descuento: 500 });
+        const env: RepuestoValidatorEnv = {
+          ...baseEnv,
+          inventario: [stock({ id: "s1", stockActual: 10 })],
+          items: [target],
+        };
+        const result = validateRepuestoDraft(
+          { ...existingBase, cantidad: "2", montoUnitario: "1000", descuento: "0" },
+          { mode: "edit", item: target },
+          env,
+        );
+        expect(result).toMatchObject({
+          ok: true,
+          value: {
+            descuento: 0,
+          },
+        });
       });
     });
   });

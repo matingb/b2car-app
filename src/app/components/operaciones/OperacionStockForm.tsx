@@ -156,6 +156,7 @@ export default function OperacionStockForm() {
             </div>
             {showIvaAlicuota ? <div style={{ textAlign: "center" }}>ALÍCUOTA IVA</div> : null}
             <div style={{ textAlign: "right" }}>UNITARIO</div>
+            <div style={{ textAlign: "right" }}>DESC.</div>
             <div style={{ textAlign: "right" }}>TOTAL</div>
             <div />
           </div>

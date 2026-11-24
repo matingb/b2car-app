@@ -20,7 +20,7 @@ BEGIN
     INSERT INTO public.detalle_arreglo (
       tenant_id, arreglo_id, descripcion, cantidad, precio_hora_facturada,
       horas_facturadas, horas_trabajadas, valor_hora_empleado,
-      categoria_arreglo_id, empleado_id
+      categoria_arreglo_id, empleado_id, descuento
     ) VALUES (
       v_tenant_id, p_arreglo_id, trim(coalesce(v_item ->> 'descripcion', '')),
       COALESCE(NULLIF(v_item ->> 'cantidad', '')::numeric, 1),
@@ -29,7 +29,8 @@ BEGIN
       COALESCE(NULLIF(v_item ->> 'horas_trabajadas', '')::numeric, 1),
       NULLIF(v_item ->> 'valor_hora_empleado', '')::numeric,
       NULLIF(v_item ->> 'categoria_arreglo_id', '')::uuid,
-      NULLIF(v_item ->> 'empleado_id', '')::uuid
+      NULLIF(v_item ->> 'empleado_id', '')::uuid,
+      COALESCE(NULLIF(v_item ->> 'descuento', '')::numeric, 0)
     );
   END LOOP;
 END;

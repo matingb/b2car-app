@@ -307,6 +307,7 @@ export default function ArregloDetailsPage() {
           precio_compra: input.precio_compra,
           precio_venta: input.precio_venta,
           cantidad: input.cantidad,
+          descuento: input.descuento,
           ...cuentaPayload,
           categoria_arreglo_id: input.categoria_arreglo_id ?? null,
           empleado_id: input.empleado_id ?? null,
@@ -319,6 +320,7 @@ export default function ArregloDetailsPage() {
           cantidad: input.cantidad,
           monto_unitario: input.monto_unitario,
           precio_compra: input.precio_compra,
+          descuento: input.descuento,
           ...cuentaPayload,
           categoria_arreglo_id: input.categoria_arreglo_id ?? null,
           empleado_id: input.empleado_id ?? null,
@@ -585,6 +587,8 @@ export default function ArregloDetailsPage() {
             subtotalServicios={subtotalServicios + subtotalServiciosCustom}
             subtotalRepuestos={subtotalRepuestos}
             total={totalCalculado}
+            subtotal={arreglo.subtotal}
+            descuento={arreglo.descuento}
             preciosIncluyenIva={arreglo.precios_incluyen_iva ?? true}
             precioSinIva={arreglo.precio_sin_iva}
             totalCobrado={arreglo.total_cobrado}

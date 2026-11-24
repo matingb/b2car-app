@@ -26,11 +26,14 @@ DECLARE
   asig uuid := gen_random_uuid();
   asig_linea uuid := gen_random_uuid();
   factura uuid := gen_random_uuid();
+  cat uuid := gen_random_uuid();
+  emp uuid := gen_random_uuid();
   r_arr public.arreglos;
   r_op public.operaciones;
   r_det public.detalle_arreglo;
   r_lin public.operaciones_lineas;
   r_form public.detalle_form_custom;
+  r_dash record;
 BEGIN
   PERFORM set_config('request.jwt.claims', jsonb_build_object('role','service_role','tenant_id',t)::text, true);
 
@@ -201,6 +204,89 @@ BEGIN
     RAISE EXCEPTION 'descuento de linea editable en venta con factura autorizada';
   EXCEPTION WHEN raise_exception THEN
     IF SQLERRM NOT LIKE '%comprobante fiscal%' THEN RAISE; END IF;
+  END;
+
+  -- --------------------------------------------------------------------------
+  -- 8. REPUESTOS ASIGNADOS A ARREGLO CON DESCUENTO
+  -- --------------------------------------------------------------------------
+  -- Registrar categoría y empleado
+  INSERT INTO public.categorias_arreglo(id, tenant_id, nombre)
+    VALUES (cat, t, 'Frenos Test');
+  INSERT INTO public.empleados(id, tenant_id, taller_id, nombre, apellido, dni)
+    VALUES (emp, t, taller, 'Juan', 'Mecanico', 'DNI-DESC-01');
+
+  -- Operación de asignación de repuesto al arreglo
+  INSERT INTO public.operaciones(id, tenant_id, tipo, taller_id, monto_total)
+    VALUES (asig, t, 'ASIGNACION_ARREGLO', taller, 0);
+  INSERT INTO public.operaciones_asignacion_arreglo(operacion_id, tenant_id, arreglo_id)
+    VALUES (asig, t, a);
+
+  -- Asignar repuesto: cantidad 2, unitario 4000 => subtotal 8000, descuento 1000 => total 7000
+  INSERT INTO public.operaciones_lineas(
+    id, operacion_id, stock_id, cantidad, monto_unitario, sentido, descuento,
+    categoria_arreglo_id, empleado_id
+  ) VALUES (
+    asig_linea, asig, st, 2, 4000, -1, 1000, cat, emp
+  );
+
+  SELECT * INTO r_lin FROM public.operaciones_lineas WHERE id = asig_linea;
+  ASSERT r_lin.subtotal = 8000.00 AND r_lin.descuento = 1000.00 AND r_lin.total = 7000.00,
+    'operaciones_lineas: repuesto asignado debe tener subtotal=8000, descuento=1000, total=7000';
+
+  SELECT * INTO r_op FROM public.operaciones WHERE id = asig;
+  ASSERT r_op.subtotal = 8000.00 AND r_op.descuento = 1000.00 AND r_op.monto_total = 7000.00,
+    'operaciones (ASIGNACION_ARREGLO): cabecera debe reflejar subtotal=8000, descuento=1000, monto_total=7000';
+
+  -- --------------------------------------------------------------------------
+  -- 9. DASHBOARD: facturación por categoría y empleado con descuento
+  -- --------------------------------------------------------------------------
+  -- Crear un arreglo limpio para verificar dashboard sin interferencias previas
+  DECLARE
+    a_dash uuid := gen_random_uuid();
+    d_dash uuid := gen_random_uuid();
+    asig_dash uuid := gen_random_uuid();
+    asig_lin_dash uuid := gen_random_uuid();
+  BEGIN
+    INSERT INTO public.arreglos(id, vehiculo_id, tenant_id, taller_id, fecha, precios_incluyen_iva, tasa_iva)
+      VALUES (a_dash, v, t, taller, now(), true, 0.21);
+
+    -- Mano de obra con descuento:
+    -- cantidad 1, horas 2, precio 5000 => subtotal 10000, descuento 2000 => total 8000
+    INSERT INTO public.detalle_arreglo(
+      id, arreglo_id, tenant_id, descripcion, cantidad, horas_facturadas,
+      precio_hora_facturada, descuento, categoria_arreglo_id, empleado_id
+    ) VALUES (
+      d_dash, a_dash, t, 'Servicio Frenos', 1, 2, 5000, 2000, cat, emp
+    );
+
+    -- Repuesto con descuento:
+    -- cantidad 1, unitario 6000 => subtotal 6000, descuento 1500 => total 4500
+    INSERT INTO public.operaciones(id, tenant_id, tipo, taller_id, monto_total)
+      VALUES (asig_dash, t, 'ASIGNACION_ARREGLO', taller, 0);
+    INSERT INTO public.operaciones_asignacion_arreglo(operacion_id, tenant_id, arreglo_id)
+      VALUES (asig_dash, t, a_dash);
+    INSERT INTO public.operaciones_lineas(
+      id, operacion_id, stock_id, cantidad, monto_unitario, sentido, descuento,
+      categoria_arreglo_id, empleado_id
+    ) VALUES (
+      asig_lin_dash, asig_dash, st, 1, 6000, -1, 1500, cat, emp
+    );
+
+    -- Verificar dashboard_facturacion_por_categoria:
+    -- Total categoría 'Frenos Test' = 8000 (mano de obra) + 4500 (repuesto) = 12500 (NO el bruto 16000)
+    SELECT * INTO r_dash FROM public.dashboard_facturacion_por_categoria(10)
+    WHERE label = 'Frenos Test';
+
+    ASSERT r_dash.monto = 12500.00,
+      format('dashboard_facturacion_por_categoria debe ser 12500 (neto), se obtuvo %s', r_dash.monto);
+
+    -- Verificar dashboard_facturacion_por_empleado:
+    -- Total empleado 'Juan Mecanico' = 8000 + 4500 = 12500 (NO el bruto 16000)
+    SELECT * INTO r_dash FROM public.dashboard_facturacion_por_empleado(10)
+    WHERE label = 'Juan Mecanico';
+
+    ASSERT r_dash.monto = 12500.00,
+      format('dashboard_facturacion_por_empleado debe ser 12500 (neto), se obtuvo %s', r_dash.monto);
   END;
 
 END;

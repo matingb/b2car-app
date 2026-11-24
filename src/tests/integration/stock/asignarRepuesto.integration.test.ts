@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { testClient, SEED } from "@/tests/integration";
+import { testClient, createAdminTestClient, SEED } from "@/tests/integration";
 import { asignarRepuestoViaRoute } from "../helpers/routeDrivers";
 import { arregloCompletoService } from "@/app/api/arreglos/arregloCompletoService";
 import { operacionesService } from "@/app/api/operaciones/operacionesService";
@@ -85,5 +85,48 @@ describe("Integration (Route): POST /api/arreglos/[id]/repuestos", () => {
     const { data: op } = await operacionesService.getById(testClient, asignacion.id);
     expect(op?.tipo).toBe("ASIGNACION_ARREGLO");
     expect(op?.taller_id).toBe(SEED.tallerId);
+  });
+
+  it("asigna un repuesto con descuento calculando subtotal, descuento y total en la línea y en la operación", async () => {
+    const { stockId } = await dadoQueExisteUnProductoConStock({
+      producto: { precio_unitario: 4000 },
+      stock: { cantidad: 10, taller_id: SEED.tallerId },
+    });
+    const arreglo = await dadoUnArreglo({ estado: "EN_PROGRESO" });
+
+    // Asignar repuesto: cantidad 2, monto 4000 => subtotal 8000, descuento 1500 => total 6500
+    const res = await asignarRepuestoViaRoute(arreglo.id, {
+      taller_id: SEED.tallerId,
+      stock_id: stockId,
+      cantidad: 2,
+      monto_unitario: 4000,
+      descuento: 1500,
+    });
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data?: { operacion_id?: string } };
+    expect(body.data?.operacion_id).toBeDefined();
+
+    const { data: linea, error: lineaError } = await createAdminTestClient()
+      .from("operaciones_lineas")
+      .select("subtotal, descuento, total")
+      .eq("operacion_id", body.data!.operacion_id!)
+      .single();
+
+    expect(lineaError).toBeNull();
+    expect(Number(linea?.subtotal)).toBe(8000);
+    expect(Number(linea?.descuento)).toBe(1500);
+    expect(Number(linea?.total)).toBe(6500);
+
+    const { data: op, error: opError } = await testClient
+      .from("operaciones")
+      .select("subtotal, descuento, monto_total")
+      .eq("id", body.data!.operacion_id!)
+      .single();
+
+    expect(opError).toBeNull();
+    expect(Number(op?.subtotal)).toBe(8000);
+    expect(Number(op?.descuento)).toBe(1500);
+    expect(Number(op?.monto_total)).toBe(6500);
   });
 });

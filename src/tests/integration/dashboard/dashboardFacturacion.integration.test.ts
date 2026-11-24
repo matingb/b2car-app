@@ -31,7 +31,7 @@ const dadoUnArregloDeMarzo = (estado: "EN_PROGRESO" | "PRESUPUESTO" = "EN_PROGRE
 /** Asigna un repuesto al arreglo y devuelve el id de su línea (para poder quitarlo). */
 async function dadoUnRepuestoAsignado(
   arregloId: string,
-  options: { monto: number; cantidad?: number; categoriaId?: string; empleadoId?: string }
+  options: { monto: number; cantidad?: number; categoriaId?: string; empleadoId?: string; descuento?: number }
 ): Promise<string> {
   const { stockId } = await dadoQueExisteUnProductoConStock({
     producto: { precio_unitario: options.monto },
@@ -44,6 +44,7 @@ async function dadoUnRepuestoAsignado(
     monto_unitario: options.monto,
     categoria_arreglo_id: options.categoriaId,
     empleado_id: options.empleadoId,
+    descuento: options.descuento ?? 0,
   });
   const body = (await res.json()) as { data?: { operacion_id?: string }; error?: string };
   if (res.status !== 200 || !body.data?.operacion_id) {
@@ -223,6 +224,33 @@ describe("Integration: dashboard - facturación por categoría", () => {
     expect(response.status).toBe(200);
     expect(body.data?.facturacionPorTipo).toEqual(esperado);
   });
+
+  it("aplica descuento en el detalle de mano de obra y refleja el monto neto en facturación por categoría", async () => {
+    const mecanica = await dadaUnaCategoria("Mecánica");
+    const arreglo = await dadoUnArregloDeMarzo();
+    await dadoUnDetalleFacturado(arreglo.id, {
+      categoriaId: mecanica,
+      precioHoraFacturada: 10000,
+      horasFacturadas: 1,
+      cantidad: 1,
+      descuento: 2500,
+    });
+
+    expect(await facturacionPorCategoria()).toEqual([{ label: "Mecánica", cantidad: 1, monto: 7500 }]);
+  });
+
+  it("aplica descuento en repuesto asignado y refleja el monto neto en facturación por categoría", async () => {
+    const frenos = await dadaUnaCategoria("Frenos");
+    const arreglo = await dadoUnArregloDeMarzo();
+    await dadoUnRepuestoAsignado(arreglo.id, {
+      monto: 6000,
+      cantidad: 2,
+      categoriaId: frenos,
+      descuento: 3000,
+    });
+
+    expect(await facturacionPorCategoria()).toEqual([{ label: "Frenos", cantidad: 1, monto: 9000 }]);
+  });
 });
 
 describe("Integration: dashboard - facturación por empleado", () => {
@@ -274,6 +302,26 @@ describe("Integration: dashboard - facturación por empleado", () => {
       { label: "Ana Test", cantidad: 1, monto: 10000 },
       { label: "Otros", cantidad: 1, monto: 3000 },
     ]);
+  });
+
+  it("aplica descuento en mano de obra y repuesto reflejando el monto neto en facturación por empleado", async () => {
+    const carlos = await dadoUnEmpleado("Carlos", "Test");
+    const arreglo = await dadoUnArregloDeMarzo();
+    await dadoUnDetalleFacturado(arreglo.id, {
+      empleadoId: carlos,
+      precioHoraFacturada: 8000,
+      horasFacturadas: 1,
+      cantidad: 1,
+      descuento: 2000,
+    });
+    await dadoUnRepuestoAsignado(arreglo.id, {
+      empleadoId: carlos,
+      monto: 5000,
+      cantidad: 1,
+      descuento: 1000,
+    });
+
+    expect(await facturacionPorEmpleado()).toEqual([{ label: "Carlos Test", cantidad: 1, monto: 10000 }]);
   });
 });
 

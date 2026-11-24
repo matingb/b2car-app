@@ -95,6 +95,7 @@ describe("POST /api/arreglos/[id]/repuestos", () => {
       p_empleado_id: null,
       p_cuenta_id: null,
       p_idempotency_key: null,
+      p_descuento: 0,
     });
     await expect(res.json()).resolves.toEqual({
       data: { operacion_id: "OP-1" },
@@ -159,6 +160,7 @@ describe("POST /api/arreglos/[id]/repuestos", () => {
       p_idempotency_key: IDEMPOTENCY_KEY,
       p_categoria_arreglo_id: null,
       p_empleado_id: null,
+      p_descuento: 0,
     });
     await expect(res.json()).resolves.toEqual({
       data: { operacion_id: "OP-2" },
@@ -199,6 +201,7 @@ describe("POST /api/arreglos/[id]/repuestos", () => {
       p_empleado_id: null,
       p_cuenta_id: CUENTA_ID,
       p_idempotency_key: IDEMPOTENCY_KEY,
+      p_descuento: 0,
     });
   });
 
@@ -263,6 +266,7 @@ describe("POST /api/arreglos/[id]/repuestos", () => {
         p_idempotency_key: null,
         p_categoria_arreglo_id: null,
         p_empleado_id: null,
+        p_descuento: 0,
       });
     });
 
@@ -362,6 +366,7 @@ describe("POST /api/arreglos/[id]/repuestos", () => {
         p_idempotency_key: null,
         p_categoria_arreglo_id: null,
         p_empleado_id: null,
+        p_descuento: 0,
       });
     });
 
@@ -509,6 +514,7 @@ describe("POST /api/arreglos/[id]/repuestos", () => {
       p_empleado_id: null,
       p_cuenta_id: null,
       p_idempotency_key: null,
+      p_descuento: 0,
     });
   });
 
@@ -536,6 +542,77 @@ describe("POST /api/arreglos/[id]/repuestos", () => {
     expect(res.status).toBe(401);
     await expect(res.json()).resolves.toMatchObject({
       error: "Tu sesión expiró o no tenés permisos para realizar esta acción",
+    });
+  });
+
+  describe("Descuentos en repuestos", () => {
+    it("rechaza repuesto existente con descuento negativo con 400", async () => {
+      const req = new Request("http://localhost/api/arreglos/A-1/repuestos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          taller_id: "T-1",
+          stock_id: "S-1",
+          cantidad: 1,
+          monto_unitario: 1000,
+          descuento: -50,
+        }),
+      });
+
+      const res = await POST(req as never, {
+        params: Promise.resolve({ id: "A-1" }),
+      });
+
+      expect(res.status).toBe(400);
+      await expect(res.json()).resolves.toEqual({
+        data: null,
+        error: "Descuento invalido",
+      });
+    });
+
+    it("guarda repuesto pendiente con descuento en presupuesto administrado", async () => {
+      maybeSingle.mockResolvedValue({
+        data: {
+          estado: "PRESUPUESTO",
+          repuestos_pendientes: [],
+        },
+        error: null,
+      });
+      rpc.mockResolvedValue({ data: { id: "REP-PEND-1" }, error: null });
+
+      const req = new Request("http://localhost/api/arreglos/A-1/repuestos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tipo: "nuevo",
+          taller_id: "T-1",
+          codigo: "FILT-DESC",
+          nombre: "Filtro con descuento",
+          precio_compra: 1000,
+          precio_venta: 2500,
+          cantidad: 2,
+          descuento: 500,
+          cuenta_financiera_id: CUENTA_ID,
+          idempotency_key: IDEMPOTENCY_KEY,
+        }),
+      });
+
+      const res = await POST(req as never, {
+        params: Promise.resolve({ id: "A-1" }),
+      });
+
+      expect(res.status).toBe(200);
+      expect(rpc).toHaveBeenCalledWith(
+        "rpc_upsert_repuesto_presupuesto",
+        expect.objectContaining({
+          p_arreglo_id: "A-1",
+          p_taller_id: "T-1",
+          p_linea: expect.objectContaining({
+            descuento: 500,
+            precio_venta: 2500,
+          }),
+        })
+      );
     });
   });
 });

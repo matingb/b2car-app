@@ -14,9 +14,7 @@ CREATE FUNCTION public.dashboard_facturacion_por_categoria (
   AS $function$
   WITH lineas AS (
     SELECT a.id AS arreglo_id, d.categoria_arreglo_id AS cat_id,
-      public.importe_comercial_arreglo((CASE WHEN d.horas_facturadas IS NULL
-        THEN d.cantidad * d.precio_hora_facturada
-        ELSE d.horas_facturadas * d.cantidad * d.precio_hora_facturada END), a.precios_incluyen_iva, a.tasa_iva)::numeric AS monto
+      public.importe_comercial_arreglo(d.total, a.precios_incluyen_iva, a.tasa_iva)::numeric AS monto
     FROM public.detalle_arreglo d
     JOIN public.arreglos a ON a.id = d.arreglo_id
     WHERE (p_from IS NULL OR a.fecha >= p_from)
@@ -25,7 +23,7 @@ CREATE FUNCTION public.dashboard_facturacion_por_categoria (
       AND (a.estado IS NULL OR a.estado <> 'PRESUPUESTO')
     UNION ALL
     SELECT a.id AS arreglo_id, ol.categoria_arreglo_id AS cat_id,
-      public.importe_comercial_arreglo(ol.cantidad * ol.monto_unitario, a.precios_incluyen_iva, a.tasa_iva)::numeric AS monto
+      public.importe_comercial_arreglo(ol.total, a.precios_incluyen_iva, a.tasa_iva)::numeric AS monto
     FROM public.operaciones_lineas ol
     JOIN public.operaciones o ON o.id = ol.operacion_id AND o.tipo = 'ASIGNACION_ARREGLO'
     JOIN public.operaciones_asignacion_arreglo oa ON oa.operacion_id = o.id
@@ -36,10 +34,10 @@ CREATE FUNCTION public.dashboard_facturacion_por_categoria (
       AND (a.estado IS NULL OR a.estado <> 'PRESUPUESTO')
     UNION ALL
     SELECT a.id AS arreglo_id, NULL::uuid AS cat_id,
-      public.importe_comercial_arreglo(c.costo, a.precios_incluyen_iva, a.tasa_iva) AS monto
+      public.importe_comercial_arreglo(c.total, a.precios_incluyen_iva, a.tasa_iva) AS monto
     FROM public.arreglos a
     CROSS JOIN LATERAL (
-      SELECT costo FROM public.detalle_form_custom WHERE arreglo_id = a.id
+      SELECT total FROM public.detalle_form_custom WHERE arreglo_id = a.id
       ORDER BY created_at DESC, id DESC LIMIT 1
     ) c
     WHERE a.tasa_iva IS NOT NULL

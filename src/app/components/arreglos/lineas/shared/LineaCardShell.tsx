@@ -24,6 +24,8 @@ export type LineaCardShellProps = {
   horasFacturadas?: number | null;
   horasTrabajadas?: number | null;
   valorHoraEmpleado?: number | null;
+  subtotal?: number;
+  descuento?: number;
   onEdit?: () => void;
   onDelete?: () => void;
   canInteract?: boolean;
@@ -62,6 +64,8 @@ export default function LineaCardShell({
   horasFacturadas,
   horasTrabajadas,
   valorHoraEmpleado,
+  subtotal,
+  descuento,
   onEdit,
   onDelete,
   canInteract = true,
@@ -101,6 +105,8 @@ export default function LineaCardShell({
         horasFacturadas={kind === "servicios" ? horasFacturadas : undefined}
         horasTrabajadas={kind === "servicios" ? horasTrabajadas : undefined}
         valorHoraEmpleado={kind === "servicios" ? valorHoraEmpleado : undefined}
+        subtotal={subtotal}
+        descuento={descuento}
         icon={icon}
         onEdit={onEdit ?? (() => {})}
         onDelete={onDelete ?? (() => {})}

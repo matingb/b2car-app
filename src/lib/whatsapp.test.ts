@@ -157,6 +157,89 @@ describe("buildArregloWhatsappMessage", () => {
     expect(msg).toContain("*Total arreglo $8.000*");
   });
 
+  it("con descuentos: formatea los ítems con subtotal tachado y total neto, subtotales y total general", () => {
+    const data = createArregloDetalleData({
+      arreglo: createArreglo({
+        esta_pago: false,
+        kilometraje_leido: 50000,
+        observaciones: "",
+        precio_final: 0,
+        vehiculo: createVehiculo({ id: "v1", patente: "ABC123" }),
+      }),
+      detalles: [
+        {
+          id: "d1",
+          arreglo_id: "a1",
+          descripcion: "Mano de obra",
+          cantidad: 1,
+          precio_hora_facturada: 10000,
+          horas_facturadas: 1,
+          horas_trabajadas: 1,
+          descuento: 2000,
+          categoria_arreglo_id: null,
+          empleado_id: null,
+        },
+      ],
+      asignaciones: [
+        {
+          id: "op1",
+          tipo: "egreso",
+          taller_id: "t1",
+          created_at: "2026-01-01",
+          lineas: [
+            {
+              id: "l1",
+              operacion_id: "op1",
+              stock_id: "s1",
+              cantidad: 2,
+              monto_unitario: 4000,
+              descuento: 1500,
+              delta_cantidad: -2,
+              created_at: "2026-01-01",
+              categoria_arreglo_id: null,
+              empleado_id: null,
+              producto: { id: "p1", codigo: "PAS-01", nombre: "Pastillas" },
+            },
+          ],
+        },
+      ],
+    });
+
+    const msgConDescuento = buildArregloWhatsappMessage(data, {
+      mostrarDetalleItems: true,
+      mostrarPreciosItems: true,
+      mostrarSubtotales: true,
+      mostrarTotal: true,
+      mostrarDescuento: true,
+    });
+
+    // Ítem repuesto con descuento: 2 * 4000 = 8000, neto = 6500
+    expect(msgConDescuento).toContain("• Pastillas x2 - ~$8.000~ $6.500");
+    // Subtotal repuestos
+    expect(msgConDescuento).toContain("_Subtotal repuestos: ~$8.000~ $6.500_");
+
+    // Ítem mano de obra con descuento: 10000, desc 2000 => 8000
+    expect(msgConDescuento).toContain("• Mano de obra x1 - ~$10.000~ $8.000");
+    expect(msgConDescuento).toContain("_Subtotal mano de obra: ~$10.000~ $8.000_");
+
+    // Total general con descuento: bruto = 18000, neto = 14500
+    expect(msgConDescuento).toContain("*Total arreglo* ~$18.000~ *$14.500*");
+
+    // Cuando mostrarDescuento es false:
+    const msgSinDescuento = buildArregloWhatsappMessage(data, {
+      mostrarDetalleItems: true,
+      mostrarPreciosItems: true,
+      mostrarSubtotales: true,
+      mostrarTotal: true,
+      mostrarDescuento: false,
+    });
+
+    expect(msgSinDescuento).toContain("• Pastillas x2 - $6.500");
+    expect(msgSinDescuento).not.toContain("~$8.000~");
+    expect(msgSinDescuento).toContain("_Subtotal repuestos: $6.500_");
+    expect(msgSinDescuento).toContain("*Total arreglo $14.500*");
+  });
+
   it("sin detalle de ítems: no muestra los detalles de ítems, solo subtotales y total", () => {
     const data = createArregloDetalleData({
       arreglo: createArreglo({

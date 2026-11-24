@@ -8,6 +8,7 @@ import Dropdown from "@/app/components/ui/Dropdown";
 import IconButton from "@/app/components/ui/IconButton";
 import { COLOR } from "@/theme/theme";
 import NumberInput from "@/app/components/ui/NumberInput";
+import DiscountInput from "@/app/components/ui/DiscountInput";
 import { formatArs } from "@/lib/format";
 import { ALICUOTAS_IVA_ARCA } from "@/lib/facturacion/types";
 
@@ -17,14 +18,16 @@ export type OperacionLineaDraft = {
   cantidad: number;
   cantidadEntregar?: number;
   unitario: number;
+  subtotal?: number;
+  descuento?: number;
   total: number;
   ivaAlicuotaId?: number | null;
 };
 
 export const OPERACION_LINE_GRID_TEMPLATE =
-  "minmax(240px, 1fr) 70px 76px 115px 115px 40px";
+  "minmax(200px, 1fr) 68px 74px 105px 115px 105px 40px";
 export const OPERACION_LINE_GRID_TEMPLATE_WITH_IVA =
-  "minmax(220px, 1fr) 70px 76px 95px 110px 115px 40px";
+  "minmax(180px, 1fr) 68px 74px 90px 95px 115px 105px 40px";
 
 const IVA_ALICUOTA_OPTIONS = ALICUOTAS_IVA_ARCA.map((rate) => ({
   value: String(rate.id),
@@ -85,14 +88,31 @@ export default function OperacionLineaEditor({
   const recomputeFromUnit = (next: OperacionLineaDraft) => {
     const cantidad = Number(next.cantidad) || 0;
     const unitario = Number(next.unitario) || 0;
-    return { ...next, total: round2(cantidad * unitario) };
+    const subtotal = round2(cantidad * unitario);
+    const descuento = Math.min(subtotal, Math.max(0, Number(next.descuento) || 0));
+    return { ...next, subtotal, descuento, total: round2(subtotal - descuento) };
   };
 
   const recomputeFromTotal = (next: OperacionLineaDraft) => {
     const cantidad = Number(next.cantidad) || 0;
     const total = Number(next.total) || 0;
-    const unitario = cantidad > 0 ? round2(total / cantidad) : Number(next.unitario) || 0;
-    return { ...next, unitario };
+    const descuento = Number(next.descuento) || 0;
+    const subtotal = round2(total + descuento);
+    const unitario = cantidad > 0 ? round2(subtotal / cantidad) : Number(next.unitario) || 0;
+    return { ...next, unitario, subtotal, total };
+  };
+
+  const onDescuentoChange = (descuento: number) => {
+    const cantidad = Number(linea.cantidad) || 0;
+    const unitario = Number(linea.unitario) || 0;
+    const subtotal = round2(cantidad * unitario);
+    const clampedDescuento = Math.min(subtotal, Math.max(0, Number(descuento) || 0));
+    onChange({
+      ...linea,
+      subtotal,
+      descuento: clampedDescuento,
+      total: round2(subtotal - clampedDescuento),
+    });
   };
 
   const onStockChange = (stockId: string) => {
@@ -329,6 +349,19 @@ export default function OperacionLineaEditor({
           style={{ ...styles.controlInput, ...styles.moneyInput }}
           data-testid={`operaciones-line-${index}-unitario`}
           aria-label="Unitario"
+        />
+      </div>
+
+      <div data-mobile-field="" onFocusCapture={onMobileActivate}>
+        <span css={styles.mobileFieldLabel}>Descuento</span>
+        <DiscountInput
+          subtotal={round2((Number(linea.cantidad) || 0) * (Number(linea.unitario) || 0))}
+          descuento={Number(linea.descuento) || 0}
+          onDescuentoChange={onDescuentoChange}
+          disabled={disabled}
+          dataTestId={`operaciones-line-${index}-descuento`}
+          ariaLabel="Descuento"
+          compact
         />
       </div>
 

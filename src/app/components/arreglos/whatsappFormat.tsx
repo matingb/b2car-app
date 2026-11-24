@@ -1,5 +1,20 @@
 import React from "react";
 
+function renderWithStrikethrough(text: string): React.ReactNode {
+  if (!text.includes("~")) return text;
+  const parts = text.split(/(~[^~]+?~)/g);
+  return parts.map((sub, i) => {
+    if (sub.startsWith("~") && sub.endsWith("~") && sub.length > 2) {
+      return (
+        <del key={i} style={{ textDecoration: "line-through" }}>
+          {sub.slice(1, -1)}
+        </del>
+      );
+    }
+    return sub;
+  });
+}
+
 /**
  * Formatea un texto con sintaxis de WhatsApp para previsualización web:
  * - *negrita* -> <strong>negrita</strong>
@@ -31,13 +46,13 @@ export function renderWhatsAppFormattedText(text: string): React.ReactNode {
         if (inner.startsWith("_") && inner.endsWith("_") && inner.length > 2) {
           return (
             <strong key={partIdx} style={{ fontWeight: 700 }}>
-              <em style={{ fontStyle: "italic" }}>{inner.slice(1, -1)}</em>
+              <em style={{ fontStyle: "italic" }}>{renderWithStrikethrough(inner.slice(1, -1))}</em>
             </strong>
           );
         }
         return (
           <strong key={partIdx} style={{ fontWeight: 700 }}>
-            {inner}
+            {renderWithStrikethrough(inner)}
           </strong>
         );
       }
@@ -48,13 +63,13 @@ export function renderWhatsAppFormattedText(text: string): React.ReactNode {
         if (inner.startsWith("*") && inner.endsWith("*") && inner.length > 2) {
           return (
             <em key={partIdx} style={{ fontStyle: "italic" }}>
-              <strong style={{ fontWeight: 700 }}>{inner.slice(1, -1)}</strong>
+              <strong style={{ fontWeight: 700 }}>{renderWithStrikethrough(inner.slice(1, -1))}</strong>
             </em>
           );
         }
         return (
           <em key={partIdx} style={{ fontStyle: "italic" }}>
-            {inner}
+            {renderWithStrikethrough(inner)}
           </em>
         );
       }

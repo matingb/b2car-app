@@ -6,12 +6,14 @@ import type { Cliente } from "@/model/types";
 import { APP_LOCALE, formatArs } from "@/lib/format";
 import { formatDateLabel } from "@/lib/fechas";
 import { safeNumber } from "@/lib/numbers";
-import { calcLineTotal } from "@/lib/calcLineTotal";
+import { calcLineTotal, calcLineSubtotal } from "@/lib/calcLineTotal";
 
 type InvoiceLine = {
   detail: string;
   quantity: number;
   unitPrice: number;
+  subtotal: number;
+  descuento: number;
   total: number;
 };
 
@@ -20,6 +22,7 @@ export type BuildInvoiceOptions = {
   tenantName?: string;
   cliente?: Cliente | null;
   showPrices?: boolean;
+  showDiscounts?: boolean;
   showObservations?: boolean;
 };
 
@@ -47,6 +50,7 @@ export function buildArregloPrintableInvoiceHtml({
   tenantName,
   cliente,
   showPrices = true,
+  showDiscounts = false,
   showObservations = true,
 }: BuildInvoiceOptions): string {
   const arreglo = data.arreglo;
@@ -54,20 +58,17 @@ export function buildArregloPrintableInvoiceHtml({
   const normalizedTenant =  String(tenantName ?? "").trim() || "Taller";
   const serviceLines = buildServiceLines(data);
   const repuestoLines = buildRepuestoLines(data);
-  const subtotalServicios = data.detalles.reduce(
-    (acc, d) =>
-      acc +
-      roundCurrency(calcLineTotal({
-        cantidad: d.cantidad,
-        horas_facturadas: d.horas_facturadas,
-        precio_hora_facturada: d.precio_hora_facturada,
-      })),
-    0
-  );
-  const subtotalCustom = roundCurrency(safeNumber(data.detalle_formulario?.costo));
-  const subtotalRepuestos = repuestoLines.reduce((acc, line) => acc + roundCurrency(line.total), 0);
-  // The persisted price_final is the commercial amount payable (including any commercial IVA).
-  const calculatedTotal = subtotalServicios + subtotalCustom + subtotalRepuestos;
+  const subtotalNetoServicios = serviceLines.reduce((acc, l) => acc + roundCurrency(l.total), 0);
+  const subtotalBrutoServicios = serviceLines.reduce((acc, l) => acc + roundCurrency(l.subtotal), 0);
+  const totalDescuentoServicios = serviceLines.reduce((acc, l) => acc + roundCurrency(l.descuento), 0);
+
+  const subtotalNetoRepuestos = repuestoLines.reduce((acc, l) => acc + roundCurrency(l.total), 0);
+  const subtotalBrutoRepuestos = repuestoLines.reduce((acc, l) => acc + roundCurrency(l.subtotal), 0);
+  const totalDescuentoRepuestos = repuestoLines.reduce((acc, l) => acc + roundCurrency(l.descuento), 0);
+
+  const subtotalBrutoTotal = roundCurrency(subtotalBrutoServicios + subtotalBrutoRepuestos);
+  const totalDescuento = roundCurrency(totalDescuentoServicios + totalDescuentoRepuestos);
+  const calculatedTotal = roundCurrency(subtotalNetoServicios + subtotalNetoRepuestos);
   const total = arreglo.precio_final == null ? calculatedTotal : safeNumber(arreglo.precio_final);
   const preciosIncluyenIva = arreglo.precios_incluyen_iva !== false;
   const subtotalIngresado = !preciosIncluyenIva && arreglo.precio_sin_iva != null
@@ -248,12 +249,17 @@ export function buildArregloPrintableInvoiceHtml({
     }
     .work-table .desc { width: auto; }
     .work-table .hours { width: 56px; text-align: right; }
-    .work-table .subtotal { width: 96px; text-align: right; }
+    .work-table .subtotal { width: 86px; text-align: right; }
+    .work-table .discount { width: 80px; text-align: right; }
+    .work-table .total { width: 86px; text-align: right; }
     .block-subtotal {
       display: grid;
       grid-template-columns: 1fr 56px 96px;
       border-top: 1px solid #222;
       font-weight: 800;
+    }
+    .block-subtotal.with-discounts {
+      grid-template-columns: 1fr 56px 86px 80px 86px;
     }
     .block-subtotal.no-prices {
       grid-template-columns: 1fr 56px;
@@ -279,13 +285,18 @@ export function buildArregloPrintableInvoiceHtml({
     }
     .parts-table .desc { width: auto; }
     .parts-table .qty { width: 56px; text-align: right; }
-    .parts-table .unit,
-    .parts-table .subtotal { width: 96px; text-align: right; }
+    .parts-table .unit { width: 86px; text-align: right; }
+    .parts-table .subtotal { width: 86px; text-align: right; }
+    .parts-table .discount { width: 80px; text-align: right; }
+    .parts-table .total { width: 86px; text-align: right; }
     .parts-subtotal {
       display: grid;
       grid-template-columns: 1fr 96px;
       border-bottom: 2px solid #222;
       font-weight: 800;
+    }
+    .parts-subtotal.with-discounts {
+      grid-template-columns: 1fr 86px 80px 86px;
     }
     .parts-subtotal div {
       padding: 2px 4px;
@@ -361,22 +372,25 @@ export function buildArregloPrintableInvoiceHtml({
 
       <div class="section-title">Detalle de los trabajos</div>
       <div class="work-block">
-        ${renderWorkTable(serviceLines, subtotalServicios + subtotalCustom, showPrices)}
+        ${renderWorkTable(serviceLines, subtotalNetoServicios, showPrices, showDiscounts)}
       </div>
 
       <div class="parts-title">Repuestos</div>
       <div class="parts-block${showPrices ? "" : " no-prices"}">
-        ${renderPartsTable(repuestoLines, showPrices)}
+        ${renderPartsTable(repuestoLines, showPrices, showDiscounts)}
       </div>
-      ${showPrices ? `<div class="parts-subtotal">
+      ${showPrices ? `<div class="parts-subtotal${showDiscounts ? " with-discounts" : ""}">
         <div>Subtotal</div>
-        <div class="money">${formatMoney(subtotalRepuestos)}</div>
+        ${showDiscounts ? `<div>${formatMoney(subtotalBrutoRepuestos)}</div><div>${totalDescuentoRepuestos > 0 ? formatMoney(totalDescuentoRepuestos) : "-"}</div>` : ""}
+        <div class="money">${formatMoney(subtotalNetoRepuestos)}</div>
       </div>` : ""}
 
       ${showObservations && arreglo.observaciones ? `<div class="observations-label">Observaciones: <span class="observations-text">${escapeHtml(arreglo.observaciones)}</span></div>` : ""}
     </section>
 
     ${showPrices ? `<div class="bottom-totals">
+      ${showDiscounts && totalDescuento > 0 ? `<div class="total-box"><span>Subtotal bruto</span><span class="money">${formatMoney(subtotalBrutoTotal)}</span></div>
+      <div class="total-box"><span>Descuento</span><span class="money">-${formatMoney(totalDescuento)}</span></div>` : ""}
       ${ivaComercial === null ? "" : `<div class="total-box"><span>Subtotal</span><span class="money">${formatMoney(subtotalIngresado)}</span></div>
       <div class="total-box"><span>IVA</span><span class="money">${formatMoney(ivaComercial)}</span></div>`}
       <div class="total-box"><span>Total Gral.</span><span class="money">${formatMoney(total)}</span></div>
@@ -392,21 +406,37 @@ function buildServiceLines(data: ArregloDetalleData): InvoiceLine[] {
     const quantity = safeNumber(d.cantidad);
     const horasFacturadas = d.horas_facturadas == null ? null : safeNumber(d.horas_facturadas);
     const unitPrice = safeNumber(d.precio_hora_facturada);
-    const total = calcLineTotal({
-      cantidad: quantity,
-      horas_facturadas: horasFacturadas,
-      precio_hora_facturada: unitPrice,
-    });
+    const descuento = safeNumber(d.descuento);
+    const subtotal = roundCurrency(
+      calcLineSubtotal({
+        cantidad: quantity,
+        horas_facturadas: horasFacturadas,
+        precio_hora_facturada: unitPrice,
+      })
+    );
+    const total = roundCurrency(
+      calcLineTotal({
+        cantidad: quantity,
+        horas_facturadas: horasFacturadas,
+        precio_hora_facturada: unitPrice,
+        descuento,
+      })
+    );
     const effectiveQty = horasFacturadas === null ? quantity : horasFacturadas * quantity;
     return {
       detail: String(d.descripcion ?? "").trim() || "Servicio",
       quantity: effectiveQty,
       unitPrice,
+      subtotal,
+      descuento,
       total,
     };
   });
 
   const customCost = safeNumber(data.detalle_formulario?.costo);
+  const customDiscount = safeNumber(data.detalle_formulario?.descuento);
+  const customSubtotal = roundCurrency(customCost);
+  const customTotal = roundCurrency(Math.max(0, customCost - customDiscount));
   const customLine =
     customCost > 0
       ? [
@@ -414,7 +444,9 @@ function buildServiceLines(data: ArregloDetalleData): InvoiceLine[] {
             detail: customDetailLabel(data),
             quantity: 1,
             unitPrice: customCost,
-            total: customCost,
+            subtotal: customSubtotal,
+            descuento: customDiscount,
+            total: customTotal,
           },
         ]
       : [];
@@ -433,11 +465,16 @@ function buildRepuestoLines(data: ArregloDetalleData): InvoiceLine[] {
     return pendientes.map((r) => {
       const quantity = safeNumber(r.cantidad);
       const unitPrice = safeNumber(r.monto_unitario);
+      const descuento = safeNumber(r.descuento);
+      const subtotal = roundCurrency(quantity * unitPrice);
+      const total = roundCurrency(Math.max(0, subtotal - descuento));
       return {
         detail: r.nombre || r.codigo || "Repuesto",
         quantity,
         unitPrice,
-        total: quantity * unitPrice,
+        subtotal,
+        descuento,
+        total,
       };
     });
   }
@@ -445,11 +482,16 @@ function buildRepuestoLines(data: ArregloDetalleData): InvoiceLine[] {
   return flattenAsignacionesLineas(data).map((r) => {
     const quantity = safeNumber(r.cantidad);
     const unitPrice = safeNumber(r.monto_unitario);
+    const descuento = safeNumber(r.descuento);
+    const subtotal = roundCurrency(quantity * unitPrice);
+    const total = roundCurrency(Math.max(0, subtotal - descuento));
     return {
       detail: r.producto?.nombre || r.producto?.codigo || "Repuesto",
       quantity,
       unitPrice,
-      total: quantity * unitPrice,
+      subtotal,
+      descuento,
+      total,
     };
   });
 }
@@ -470,52 +512,90 @@ function renderField(value: string, label: string): string {
 function renderWorkTable(
   lines: InvoiceLine[],
   subtotal: number,
-  showPrices: boolean = true
+  showPrices: boolean = true,
+  showDiscounts: boolean = false
 ): string {
+  const effectiveDiscounts = showPrices && showDiscounts;
   const rows = lines.map(
     (line) => `<tr>
       <td class="desc">${escapeHtml(line.detail)}</td>
       <td class="hours">${escapeHtml(formatQuantity(line.quantity))}</td>
-      ${showPrices ? `<td class="subtotal">${formatMoney(line.total)}</td>` : ""}
+      ${
+        effectiveDiscounts
+          ? `<td class="subtotal">${formatMoney(line.subtotal)}</td>
+      <td class="discount">${line.descuento > 0 ? formatMoney(line.descuento) : "-"}</td>
+      <td class="total">${formatMoney(line.total)}</td>`
+          : showPrices
+          ? `<td class="subtotal">${formatMoney(line.total)}</td>`
+          : ""
+      }
     </tr>`
   );
 
   while (rows.length < 7) {
     rows.push(
       `<tr><td class="desc">&nbsp;</td><td class="hours"></td>${
-        showPrices ? `<td class="subtotal"></td>` : ""
+        effectiveDiscounts
+          ? `<td class="subtotal"></td><td class="discount"></td><td class="total"></td>`
+          : showPrices
+          ? `<td class="subtotal"></td>`
+          : ""
       }</tr>`
     );
   }
+
+  const grossSum = lines.reduce((acc, line) => acc + line.subtotal, 0);
+  const discountSum = lines.reduce((acc, line) => acc + line.descuento, 0);
 
   return `<table class="work-table">
     <thead>
       <tr>
         <th class="desc">Descripción</th>
         <th class="hours">Cant.</th>
-        ${showPrices ? `<th class="subtotal">Subtotal</th>` : ""}
+        ${
+          effectiveDiscounts
+            ? `<th class="subtotal">Subtotal</th>
+        <th class="discount">Descuento</th>
+        <th class="total">Total</th>`
+            : showPrices
+            ? `<th class="subtotal">Subtotal</th>`
+            : ""
+        }
       </tr>
     </thead>
     <tbody>${rows.join("")}</tbody>
   </table>
-  <div class="block-subtotal${showPrices ? "" : " no-prices"}">
+  <div class="block-subtotal${effectiveDiscounts ? " with-discounts" : showPrices ? "" : " no-prices"}">
     <div>Subtotal</div>
     <div>${escapeHtml(formatQuantity(lines.reduce((acc, line) => acc + line.quantity, 0)))}</div>
-    ${showPrices ? `<div>${formatMoney(subtotal)}</div>` : ""}
+    ${
+      effectiveDiscounts
+        ? `<div>${formatMoney(grossSum)}</div><div>${discountSum > 0 ? formatMoney(discountSum) : "-"}</div><div>${formatMoney(subtotal)}</div>`
+        : showPrices
+        ? `<div>${formatMoney(subtotal)}</div>`
+        : ""
+    }
   </div>`;
 }
 
 function renderPartsTable(
   lines: InvoiceLine[],
-  showPrices: boolean = true
+  showPrices: boolean = true,
+  showDiscounts: boolean = false
 ): string {
   const minRows = 10;
+  const effectiveDiscounts = showPrices && showDiscounts;
   const rows = lines.map(
     (line) => `<tr>
       <td class="desc">${escapeHtml(line.detail)}</td>
       <td class="qty">${escapeHtml(formatQuantity(line.quantity))}</td>
       ${
-        showPrices
+        effectiveDiscounts
+          ? `<td class="unit">${formatMoney(line.unitPrice)}</td>
+      <td class="subtotal">${formatMoney(line.subtotal)}</td>
+      <td class="discount">${line.descuento > 0 ? formatMoney(line.descuento) : "-"}</td>
+      <td class="total">${formatMoney(line.total)}</td>`
+          : showPrices
           ? `<td class="unit">${formatMoney(line.unitPrice)}</td>
       <td class="subtotal">${formatMoney(line.total)}</td>`
           : ""
@@ -526,7 +606,11 @@ function renderPartsTable(
   while (rows.length < minRows) {
     rows.push(
       `<tr><td class="desc">&nbsp;</td><td class="qty"></td>${
-        showPrices ? `<td class="unit"></td><td class="subtotal"></td>` : ""
+        effectiveDiscounts
+          ? `<td class="unit"></td><td class="subtotal"></td><td class="discount"></td><td class="total"></td>`
+          : showPrices
+          ? `<td class="unit"></td><td class="subtotal"></td>`
+          : ""
       }</tr>`
     );
   }
@@ -537,7 +621,12 @@ function renderPartsTable(
         <th class="desc">Descripción</th>
         <th class="qty">Cant.</th>
         ${
-          showPrices
+          effectiveDiscounts
+            ? `<th class="unit">$ Unidad</th>
+        <th class="subtotal">Subtotal</th>
+        <th class="discount">Descuento</th>
+        <th class="total">Total</th>`
+            : showPrices
             ? `<th class="unit">$ Unidad</th>
         <th class="subtotal">$Subtotal</th>`
             : ""

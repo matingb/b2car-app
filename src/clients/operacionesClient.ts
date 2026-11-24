@@ -7,6 +7,7 @@ export type CreateOperacionLineaInput = {
 	cantidad: number;
 	cantidad_cumplida?: number;
 	monto_unitario: number;
+	descuento?: number;
 	delta_cantidad: number;
 	iva_alicuota_id?: number | null;
 };
@@ -219,6 +220,27 @@ export const operacionesClient = {
 			return { data: mapOperacionFromApi(body.data), error: null };
 		} catch (err: unknown) {
 			const message = err instanceof Error ? err.message : "No se pudo actualizar la operación";
+			return { data: null, error: message };
+		}
+	},
+
+	async actualizarDescuentos(
+		id: string | number,
+		lineas: Array<{ id: string; descuento: number }>
+	): Promise<UpdateOperacionResponse> {
+		try {
+			const res = await fetch(`/api/operaciones/${id}`, {
+				method: "PUT",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ lineas }),
+			});
+			const body = await res.json().catch(() => ({}));
+			if (!res.ok || body?.error) {
+				return { data: null, error: body?.error || `Error ${res.status}` };
+			}
+			return { data: mapOperacionFromApi(body.data), error: null };
+		} catch (err: unknown) {
+			const message = err instanceof Error ? err.message : "No se pudo actualizar los descuentos";
 			return { data: null, error: message };
 		}
 	},

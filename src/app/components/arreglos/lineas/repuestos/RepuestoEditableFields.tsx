@@ -6,17 +6,20 @@ import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import Can from "@/app/components/auth/Can";
 import { Permission } from "@/lib/permissions";
 import NumberInput from "@/app/components/ui/NumberInput";
+import DiscountInput from "@/app/components/ui/DiscountInput";
 
 type Props = {
   searchSlot: React.ReactNode;
   cantidad: string;
   precioCompra?: string;
   precioVenta: string;
+  descuento?: string;
   showPurchaseUnit?: boolean;
   canInteract: boolean;
   onCantidadChange: (val: string) => void;
   onPrecioCompraChange?: (val: string) => void;
   onPrecioVentaChange: (val: string) => void;
+  onDescuentoChange?: (val: string) => void;
 };
 
 export default function RepuestoEditableFields({
@@ -24,11 +27,13 @@ export default function RepuestoEditableFields({
   cantidad,
   precioCompra = "",
   precioVenta,
+  descuento = "0",
   showPurchaseUnit = false,
   canInteract,
   onCantidadChange,
   onPrecioCompraChange,
   onPrecioVentaChange,
+  onDescuentoChange,
 }: Props) {
 
   return (
@@ -85,6 +90,17 @@ export default function RepuestoEditableFields({
                 placeholder="0.00"
                 disabled={!canInteract}
                 style={styles.fieldNumberInput(canInteract)}
+              />
+            </div>
+
+            <div css={styles.numField("110px")}>
+              <span css={styles.prefixLabel}>Desc</span>
+              <DiscountInput
+                subtotal={(Number(cantidad) || 0) * (Number(precioVenta) || 0)}
+                descuento={Number(descuento) || 0}
+                onDescuentoChange={(d) => onDescuentoChange?.(String(d))}
+                disabled={!canInteract}
+                compact
               />
             </div>
           </Can>

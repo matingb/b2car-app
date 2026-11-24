@@ -3,7 +3,7 @@ import type { ArregloDetalleData, AsignacionArregloLinea } from "@/app/api/arreg
 import type { Turno } from "@/model/types";
 import { formatPatenteConMarcaYModelo } from "@/lib/vehiculos";
 import { safeNumber } from "@/lib/numbers";
-import { calcLineTotal } from "@/lib/calcLineTotal";
+import { calcLineTotal, calcLineSubtotal } from "@/lib/calcLineTotal";
 import { importeComercial } from "@/lib/ivaComercial";
 
 export interface ArregloWhatsappOptions {
@@ -12,6 +12,7 @@ export interface ArregloWhatsappOptions {
 	mostrarPreciosItems?: boolean;
 	mostrarSubtotales?: boolean;
 	mostrarTotal?: boolean;
+	mostrarDescuento?: boolean;
 	incluirKm?: boolean;
 	incluirObservaciones?: boolean;
 	/** Solo aplica a arreglos con precios sin IVA: en false los montos van netos y el IVA se discrimina. */
@@ -22,6 +23,7 @@ type WhatsappRepuestoLinea = {
 	label: string;
 	cantidad: number;
 	monto_unitario: number;
+	descuento: number;
 };
 
 type ImporteCliente = (importe: number) => number;
@@ -43,6 +45,7 @@ export function buildArregloWhatsappMessage(
 		mostrarPreciosItems = true,
 		mostrarSubtotales = false,
 		mostrarTotal = true,
+		mostrarDescuento = true,
 		incluirKm = true,
 		incluirObservaciones = true,
 		preciosConIva = true,
@@ -90,7 +93,10 @@ export function buildArregloWhatsappMessage(
 					importeCliente,
 					mostrarPreciosItems,
 					mostrarSubtotales,
-					subtotales.subtotalRepuestos
+					mostrarDescuento,
+					subtotales.subtotalRepuestos,
+					subtotales.subtotalRepuestosBruto,
+					subtotales.descuentoRepuestos
 				)
 			);
 			lines.push("");
@@ -104,7 +110,10 @@ export function buildArregloWhatsappMessage(
 					importeCliente,
 					mostrarPreciosItems,
 					mostrarSubtotales,
-					subtotales.subtotalServicios
+					mostrarDescuento,
+					subtotales.subtotalServicios,
+					subtotales.subtotalServiciosBruto,
+					subtotales.descuentoServicios
 				)
 			);
 			lines.push("");
@@ -113,9 +122,14 @@ export function buildArregloWhatsappMessage(
 		// Modo sin detalle pero con subtotales agrupados
 		const montosLines = buildSoloMontosSectionLines(
 			subtotales.subtotalRepuestos,
+			subtotales.subtotalRepuestosBruto,
+			subtotales.descuentoRepuestos,
 			subtotales.subtotalServicios,
+			subtotales.subtotalServiciosBruto,
+			subtotales.descuentoServicios,
 			repuestosLineas.length > 0,
-			detalles.length > 0
+			detalles.length > 0,
+			mostrarDescuento
 		);
 		if (montosLines.length) {
 			lines.push(...montosLines);
@@ -128,7 +142,13 @@ export function buildArregloWhatsappMessage(
 		if (discriminarIva) {
 			lines.push(...buildIvaDiscriminadoLines(arreglo, totals.total, subtotales));
 		}
-		lines.push(`*Total arreglo ${formatArs(totals.total, { maxDecimals: 2, minDecimals: 0 })}*`);
+		if (mostrarDescuento && totals.totalDescuento > 0) {
+			const brutoStr = formatArs(totals.totalBruto, { maxDecimals: 2, minDecimals: 0 });
+			const totalStr = formatArs(totals.total, { maxDecimals: 2, minDecimals: 0 });
+			lines.push(`*Total arreglo* ~${brutoStr}~ *${totalStr}*`);
+		} else {
+			lines.push(`*Total arreglo ${formatArs(totals.total, { maxDecimals: 2, minDecimals: 0 })}*`);
+		}
 	} else {
 		// Quitar línea vacía sobrante si terminó con espacio
 		if (lines[lines.length - 1] === "") {
@@ -183,27 +203,69 @@ function calculateArregloTotals(
 	repuestosLineas: WhatsappRepuestoLinea[],
 	precioFinal: number,
 	importeCliente: ImporteCliente
-): { subtotalServicios: number; subtotalRepuestos: number; total: number } {
-	const subtotalServicios = (detalles ?? []).reduce(
-		(acc, d) =>
-			acc +
-			importeCliente(
-				calcLineTotal({
-					cantidad: d.cantidad,
-					horas_facturadas: d.horas_facturadas,
-					precio_hora_facturada: d.precio_hora_facturada,
-				})
-			),
-		0
-	);
-	const subtotalRepuestos = repuestosLineas.reduce(
-		(acc, l) => acc + importeCliente(safeNumber(l.monto_unitario) * safeNumber(l.cantidad)),
-		0
-	);
+): {
+	subtotalServiciosBruto: number;
+	subtotalServicios: number;
+	descuentoServicios: number;
+	subtotalRepuestosBruto: number;
+	subtotalRepuestos: number;
+	descuentoRepuestos: number;
+	totalBruto: number;
+	totalDescuento: number;
+	total: number;
+} {
+	let subtotalServiciosBruto = 0;
+	let subtotalServicios = 0;
+	(detalles ?? []).forEach((d) => {
+		const cantidad = safeNumber(d.cantidad);
+		const horas = d.horas_facturadas == null ? null : safeNumber(d.horas_facturadas);
+		const precio = safeNumber(d.precio_hora_facturada);
+		const desc = safeNumber(d.descuento);
+		const bruto = calcLineSubtotal({
+			cantidad,
+			horas_facturadas: horas,
+			precio_hora_facturada: precio,
+		});
+		const neto = calcLineTotal({
+			cantidad,
+			horas_facturadas: horas,
+			precio_hora_facturada: precio,
+			descuento: desc,
+		});
+		subtotalServiciosBruto += importeCliente(bruto);
+		subtotalServicios += importeCliente(neto);
+	});
+
+	let subtotalRepuestosBruto = 0;
+	let subtotalRepuestos = 0;
+	repuestosLineas.forEach((l) => {
+		const cantidad = safeNumber(l.cantidad);
+		const monto = safeNumber(l.monto_unitario);
+		const desc = safeNumber(l.descuento);
+		const bruto = cantidad * monto;
+		const neto = Math.max(0, bruto - desc);
+		subtotalRepuestosBruto += importeCliente(bruto);
+		subtotalRepuestos += importeCliente(neto);
+	});
+
+	const descuentoServicios = Math.max(0, subtotalServiciosBruto - subtotalServicios);
+	const descuentoRepuestos = Math.max(0, subtotalRepuestosBruto - subtotalRepuestos);
 	const totalCalculado = subtotalServicios + subtotalRepuestos;
 	const total = precioFinal > 0 ? precioFinal : totalCalculado;
+	const totalDescuento = descuentoServicios + descuentoRepuestos;
+	const totalBruto = total + totalDescuento;
 
-	return { subtotalServicios, subtotalRepuestos, total };
+	return {
+		subtotalServiciosBruto,
+		subtotalServicios,
+		descuentoServicios,
+		subtotalRepuestosBruto,
+		subtotalRepuestos,
+		descuentoRepuestos,
+		totalBruto,
+		totalDescuento,
+		total,
+	};
 }
 
 function buildIvaDiscriminadoLines(
@@ -224,11 +286,23 @@ function buildIvaDiscriminadoLines(
 	];
 }
 
-function buildItemLine(label: string, cantidad: number, totalMonto?: number): string {
+function buildItemLine(
+	label: string,
+	cantidad: number,
+	monto?: { subtotal: number; total: number; descuento: number },
+	mostrarDescuento: boolean = true
+): string {
 	const qty = cantidad ? ` x${cantidad}` : "";
-	const price =
-		totalMonto != null ? ` - ${formatArs(totalMonto, { maxDecimals: 2, minDecimals: 0 })}` : "";
-	return `• ${label}${qty}${price}`;
+	if (!monto) {
+		return `• ${label}${qty}`;
+	}
+	if (mostrarDescuento && monto.descuento > 0) {
+		const subtotalStr = formatArs(monto.subtotal, { maxDecimals: 2, minDecimals: 0 });
+		const totalStr = formatArs(monto.total, { maxDecimals: 2, minDecimals: 0 });
+		return `• ${label}${qty} - ~${subtotalStr}~ ${totalStr}`;
+	}
+	const totalStr = formatArs(monto.total, { maxDecimals: 2, minDecimals: 0 });
+	return `• ${label}${qty} - ${totalStr}`;
 }
 
 function buildRepuestosSectionLines(
@@ -236,17 +310,31 @@ function buildRepuestosSectionLines(
 	importeCliente: ImporteCliente,
 	showItemPrices: boolean,
 	showSubtotal: boolean,
-	subtotal: number
+	mostrarDescuento: boolean,
+	subtotalNeto: number,
+	subtotalBruto: number,
+	descuentoTotal: number
 ): string[] {
 	const lines: string[] = ["📦 *Repuestos:*"];
 	repuestosLineas.forEach((r) => {
 		const cantidad = safeNumber(r.cantidad);
 		const monto = safeNumber(r.monto_unitario);
-		const total = importeCliente(cantidad * monto);
-		lines.push(buildItemLine(r.label, cantidad, showItemPrices ? total : undefined));
+		const desc = safeNumber(r.descuento);
+		const bruto = importeCliente(cantidad * monto);
+		const neto = importeCliente(Math.max(0, cantidad * monto - desc));
+		const montoObj = showItemPrices
+			? { subtotal: bruto, total: neto, descuento: Math.max(0, bruto - neto) }
+			: undefined;
+		lines.push(buildItemLine(r.label, cantidad, montoObj, mostrarDescuento));
 	});
 	if (showSubtotal) {
-		lines.push(`_Subtotal repuestos: ${formatArs(subtotal, { maxDecimals: 2, minDecimals: 0 })}_`);
+		if (mostrarDescuento && descuentoTotal > 0) {
+			const brutoStr = formatArs(subtotalBruto, { maxDecimals: 2, minDecimals: 0 });
+			const netoStr = formatArs(subtotalNeto, { maxDecimals: 2, minDecimals: 0 });
+			lines.push(`_Subtotal repuestos: ~${brutoStr}~ ${netoStr}_`);
+		} else {
+			lines.push(`_Subtotal repuestos: ${formatArs(subtotalNeto, { maxDecimals: 2, minDecimals: 0 })}_`);
+		}
 	}
 	return lines;
 }
@@ -256,45 +344,77 @@ function buildServiciosSectionLines(
 	importeCliente: ImporteCliente,
 	showItemPrices: boolean,
 	showSubtotal: boolean,
-	subtotal: number
+	mostrarDescuento: boolean,
+	subtotalNeto: number,
+	subtotalBruto: number,
+	descuentoTotal: number
 ): string[] {
 	const lines: string[] = ["👨‍🔧 *Servicios:*"];
 	detalles.forEach((d) => {
 		const cantidad = safeNumber(d.cantidad);
 		const horasFacturadas = d.horas_facturadas == null ? null : safeNumber(d.horas_facturadas);
 		const precioHora = safeNumber(d.precio_hora_facturada);
-		const total = importeCliente(
-			calcLineTotal({
-				cantidad,
-				horas_facturadas: horasFacturadas,
-				precio_hora_facturada: precioHora,
-			})
-		);
+		const desc = safeNumber(d.descuento);
+		const bruto = calcLineSubtotal({
+			cantidad,
+			horas_facturadas: horasFacturadas,
+			precio_hora_facturada: precioHora,
+		});
+		const neto = calcLineTotal({
+			cantidad,
+			horas_facturadas: horasFacturadas,
+			precio_hora_facturada: precioHora,
+			descuento: desc,
+		});
+		const subtotal = importeCliente(bruto);
+		const total = importeCliente(neto);
 		const label = String(d.descripcion ?? "").trim() || "Servicio";
-		lines.push(buildItemLine(label, cantidad, showItemPrices ? total : undefined));
+		const montoObj = showItemPrices
+			? { subtotal, total, descuento: Math.max(0, subtotal - total) }
+			: undefined;
+		lines.push(buildItemLine(label, cantidad, montoObj, mostrarDescuento));
 	});
 	if (showSubtotal) {
-		lines.push(`_Subtotal mano de obra: ${formatArs(subtotal, { maxDecimals: 2, minDecimals: 0 })}_`);
+		if (mostrarDescuento && descuentoTotal > 0) {
+			const brutoStr = formatArs(subtotalBruto, { maxDecimals: 2, minDecimals: 0 });
+			const netoStr = formatArs(subtotalNeto, { maxDecimals: 2, minDecimals: 0 });
+			lines.push(`_Subtotal mano de obra: ~${brutoStr}~ ${netoStr}_`);
+		} else {
+			lines.push(`_Subtotal mano de obra: ${formatArs(subtotalNeto, { maxDecimals: 2, minDecimals: 0 })}_`);
+		}
 	}
 	return lines;
 }
 
 function buildSoloMontosSectionLines(
-	subtotalRepuestos: number,
-	subtotalServicios: number,
+	subtotalRepuestosNeto: number,
+	subtotalRepuestosBruto: number,
+	descuentoRepuestos: number,
+	subtotalServiciosNeto: number,
+	subtotalServiciosBruto: number,
+	descuentoServicios: number,
 	hasRepuestos: boolean,
-	hasServicios: boolean
+	hasServicios: boolean,
+	mostrarDescuento: boolean
 ): string[] {
 	const lines: string[] = ["💰 *Resumen:*"];
 	if (hasRepuestos) {
-		lines.push(
-			`• Repuestos: ${formatArs(subtotalRepuestos, { maxDecimals: 2, minDecimals: 0 })}`
-		);
+		if (mostrarDescuento && descuentoRepuestos > 0) {
+			const bruto = formatArs(subtotalRepuestosBruto, { maxDecimals: 2, minDecimals: 0 });
+			const neto = formatArs(subtotalRepuestosNeto, { maxDecimals: 2, minDecimals: 0 });
+			lines.push(`• Repuestos: ~${bruto}~ ${neto}`);
+		} else {
+			lines.push(`• Repuestos: ${formatArs(subtotalRepuestosNeto, { maxDecimals: 2, minDecimals: 0 })}`);
+		}
 	}
 	if (hasServicios) {
-		lines.push(
-			`• Mano de obra: ${formatArs(subtotalServicios, { maxDecimals: 2, minDecimals: 0 })}`
-		);
+		if (mostrarDescuento && descuentoServicios > 0) {
+			const bruto = formatArs(subtotalServiciosBruto, { maxDecimals: 2, minDecimals: 0 });
+			const neto = formatArs(subtotalServiciosNeto, { maxDecimals: 2, minDecimals: 0 });
+			lines.push(`• Mano de obra: ~${bruto}~ ${neto}`);
+		} else {
+			lines.push(`• Mano de obra: ${formatArs(subtotalServiciosNeto, { maxDecimals: 2, minDecimals: 0 })}`);
+		}
 	}
 	return lines;
 }
@@ -435,6 +555,7 @@ function getRepuestosWhatsappLines(data: ArregloDetalleData): WhatsappRepuestoLi
 			label: linea.nombre || linea.codigo || "Repuesto",
 			cantidad: linea.cantidad,
 			monto_unitario: linea.monto_unitario,
+			descuento: safeNumber(linea.descuento),
 		}));
 	}
 
@@ -442,5 +563,6 @@ function getRepuestosWhatsappLines(data: ArregloDetalleData): WhatsappRepuestoLi
 		label: linea.producto?.nombre || linea.producto?.codigo || "Repuesto",
 		cantidad: linea.cantidad,
 		monto_unitario: linea.monto_unitario,
+		descuento: safeNumber(linea.descuento),
 	}));
 }

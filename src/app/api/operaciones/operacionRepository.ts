@@ -228,6 +228,12 @@ export interface OperacionRepository {
 		params: RpcActualizarOperacionParams
 	): Promise<{ data: unknown; error: PostgrestError | null }>;
 
+	actualizarDescuentos(
+		supabase: SupabaseClient,
+		operacionId: string,
+		lineas: Array<{ id: string; descuento: number }>
+	): Promise<{ data: unknown; error: PostgrestError | null }>;
+
 	deleteById(
 		supabase: SupabaseClient,
 		id: string,
@@ -357,6 +363,9 @@ export const operacionRepository: OperacionRepository = {
 						? Number(l.cantidad_cumplida)
 						: undefined,
 				monto_unitario: Number(l.monto_unitario) || 0,
+				subtotal: Number(l.subtotal) || 0,
+				descuento: Number(l.descuento) || 0,
+				total: Number(l.total) || 0,
 				delta_cantidad: Number(l.delta_cantidad) || 0,
 				iva_alicuota_id: l.iva_alicuota_id !== undefined && l.iva_alicuota_id !== null
 					? Number(l.iva_alicuota_id)
@@ -469,6 +478,18 @@ export const operacionRepository: OperacionRepository = {
 			...params,
 			p_fecha: params.p_fecha ?? null,
 			p_observaciones: params.p_observaciones ?? null,
+		});
+		return { data, error };
+	},
+
+	async actualizarDescuentos(
+		supabase: SupabaseClient,
+		operacionId: string,
+		lineas: Array<{ id: string; descuento: number }>
+	) {
+		const { data, error } = await supabase.rpc("rpc_actualizar_descuentos_operacion", {
+			p_operacion_id: operacionId,
+			p_lineas: lineas,
 		});
 		return { data, error };
 	},

@@ -14,6 +14,9 @@ export type DetalleArreglo = {
   horas_facturadas: number | null;
   horas_trabajadas: number | null;
   valor_hora_empleado?: number | null;
+  subtotal?: number;
+  descuento?: number;
+  total?: number;
   categoria_arreglo_id: string | null;
   empleado_id: string | null;
   created_at?: string;
@@ -36,6 +39,9 @@ export type AsignacionArregloLinea = {
   stock_id: string;
   cantidad: number;
   monto_unitario: number;
+  subtotal?: number;
+  descuento?: number;
+  total?: number;
   delta_cantidad: number;
   created_at: string;
   categoria_arreglo_id: string | null;
@@ -56,6 +62,9 @@ export type DetalleArregloFormulario = {
   arreglo_id: string;
   formulario_id: string | null;
   costo: number;
+  subtotal?: number;
+  descuento?: number;
+  total?: number;
   metadata: ArregloFormularioLineaValue[];
   created_at?: string;
   updated_at?: string;

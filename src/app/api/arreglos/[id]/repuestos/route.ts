@@ -12,6 +12,7 @@ export type UpsertRepuestoLineaRequest = {
   stock_id: string;
   cantidad: number;
   monto_unitario: number;
+  descuento?: number;
   precio_compra?: number | null;
   cuenta_financiera_id?: string | null;
   idempotency_key?: string | null;
@@ -28,6 +29,7 @@ export type CreateInlineProductoRepuestoRequest = {
   precio_compra: number;
   precio_venta: number;
   cantidad: number;
+  descuento?: number;
   cuenta_financiera_id?: string | null;
   idempotency_key?: string | null;
   categoria_arreglo_id?: string | null;
@@ -67,6 +69,10 @@ async function upsertRepuestoPendiente(
   }
   const cuentaId = body.cuenta_financiera_id?.trim() || null;
   const idempotencyKey = body.idempotency_key?.trim() || null;
+  const descuento = Number(body.descuento) || 0;
+  if (!Number.isFinite(descuento) || descuento < 0) {
+    return Response.json({ data: null, error: "Descuento invalido" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
+  }
   const linea = body.tipo === "nuevo"
     ? {
         tipo: "NUEVO",
@@ -76,6 +82,7 @@ async function upsertRepuestoPendiente(
         precio_venta: body.precio_venta,
         monto_unitario: body.precio_venta,
         cantidad: body.cantidad,
+        descuento,
         cuenta_id: cuentaId,
         idempotency_key: idempotencyKey,
         categoria_arreglo_id: body.categoria_arreglo_id ?? null,
@@ -86,6 +93,7 @@ async function upsertRepuestoPendiente(
         stock_id: body.stock_id,
         cantidad: body.cantidad,
         monto_unitario: body.monto_unitario,
+        descuento,
         ...(body.precio_compra !== undefined ? { precio_compra: body.precio_compra } : {}),
         cuenta_id: cuentaId,
         idempotency_key: idempotencyKey,
@@ -179,6 +187,7 @@ async function upsertRepuestoExistente(
   const stockId = String(body.stock_id ?? "").trim();
   const cantidad = Number(body.cantidad);
   const montoUnitario = Number(body.monto_unitario);
+  const descuento = Number(body.descuento) || 0;
 
   if (!arregloId) {
     return Response.json({ data: null, error: "Falta arreglo_id" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
@@ -194,6 +203,9 @@ async function upsertRepuestoExistente(
   }
   if (!Number.isFinite(montoUnitario) || montoUnitario < 0) {
     return Response.json({ data: null, error: "Monto unitario invalido" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
+  }
+  if (!Number.isFinite(descuento) || descuento < 0) {
+    return Response.json({ data: null, error: "Descuento invalido" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
   }
 
   const precioCompraRaw = body.precio_compra;
@@ -233,6 +245,7 @@ async function upsertRepuestoExistente(
     p_empleado_id: empleadoId,
     p_cuenta_id: cuentaId,
     p_idempotency_key: idempotencyKey,
+    p_descuento: descuento,
   });
 
   if (error || !data) {
@@ -257,6 +270,7 @@ async function createRepuestoConProductoNuevo(
   const precioCompra = Number(body.precio_compra);
   const precioVenta = Number(body.precio_venta);
   const cantidad = Number(body.cantidad);
+  const descuento = Number(body.descuento) || 0;
 
   if (!arregloId) return Response.json({ data: null, error: "Falta arreglo_id" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
   if (!tallerId) return Response.json({ data: null, error: "Falta taller_id" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
@@ -270,6 +284,9 @@ async function createRepuestoConProductoNuevo(
   }
   if (!Number.isFinite(cantidad) || cantidad <= 0) {
     return Response.json({ data: null, error: "Cantidad invalida" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
+  }
+  if (!Number.isFinite(descuento) || descuento < 0) {
+    return Response.json({ data: null, error: "Descuento invalido" } satisfies UpsertRepuestoLineaResponse, { status: 400 });
   }
 
   const categoriaArregloId = body.categoria_arreglo_id?.trim() || null;
@@ -312,6 +329,7 @@ async function createRepuestoConProductoNuevo(
     p_idempotency_key: idempotencyKey,
     p_categoria_arreglo_id: categoriaArregloId,
     p_empleado_id: empleadoId,
+    p_descuento: descuento,
   });
 
   if (error || !data) {

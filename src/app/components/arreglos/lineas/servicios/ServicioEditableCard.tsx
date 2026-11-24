@@ -16,6 +16,7 @@ export type ServicioEditableCardDraft = {
   horasFacturadas: number;     // decimal, step 0.25, min 0
   horasTrabajadas: number;     // decimal, step 0.25, min 0
   precioHoraFacturada: string; // entero, min 0
+  descuento: number;           // monto de descuento, min 0
   valorHoraEmpleado: string;
   categoriaArregloId: string | null;
   empleadoId: string | null;
@@ -60,6 +61,7 @@ export default function ServicioEditableCard({
     cantidad: draft.cantidad,
     horas_facturadas: draft.horasFacturadas,
     precio_hora_facturada: draft.precioHoraFacturada,
+    descuento: draft.descuento,
   });
 
   return (

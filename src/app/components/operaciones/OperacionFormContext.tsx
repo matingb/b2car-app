@@ -663,11 +663,15 @@ export function OperacionFormProvider({
   const totalIvaCompra = useMemo(() => {
     if (tipo !== "COMPRA" || !facturaActiva || factura.draft.clase !== "A") return 0;
     try {
-      return calcularIvaTotalDesdeBases(lineas.map((linea, index) => ({
-        key: String(index),
-        importe: (Number(linea.cantidad) || 0) * (Number(linea.unitario) || 0),
-        ivaAlicuotaId: linea.ivaAlicuotaId ?? stockById.get(linea.stockId)?.ivaAlicuotaId ?? 5,
-      })));
+      return calcularIvaTotalDesdeBases(lineas.map((linea, index) => {
+        const sub = (Number(linea.cantidad) || 0) * (Number(linea.unitario) || 0);
+        const desc = Number(linea.descuento) || 0;
+        return {
+          key: String(index),
+          importe: Math.max(0, sub - desc),
+          ivaAlicuotaId: linea.ivaAlicuotaId ?? stockById.get(linea.stockId)?.ivaAlicuotaId ?? 5,
+        };
+      }));
     } catch {
       return 0;
     }
@@ -675,10 +679,11 @@ export function OperacionFormProvider({
 
   const importeTotal = useMemo(() => {
     if (tipo === "GASTO") return Number(montoGasto) || 0;
-    const totalLineas = lineas.reduce(
-      (sum, l) => sum + (Number(l.cantidad) || 0) * (Number(l.unitario) || 0),
-      0
-    );
+    const totalLineas = lineas.reduce((sum, l) => {
+      const sub = (Number(l.cantidad) || 0) * (Number(l.unitario) || 0);
+      const desc = Number(l.descuento) || 0;
+      return sum + Math.max(0, sub - desc);
+    }, 0);
     return sumarImportes([totalLineas, totalIvaCompra, totalPercepciones]);
   }, [tipo, montoGasto, lineas, totalIvaCompra, totalPercepciones]);
 
@@ -964,11 +969,13 @@ export function OperacionFormProvider({
           const cantidadCumplida = l.cantidadEntregar !== undefined ? Number(l.cantidadEntregar) : cantidad;
           const unitario = Number(l.unitario) || 0;
           const delta = tipo === "VENTA" ? -cantidad : cantidad;
+          const descuento = Number(l.descuento) || 0;
           return {
             stock_id: l.stockId,
             cantidad,
             cantidad_cumplida: cantidadCumplida,
             monto_unitario: unitario,
+            descuento,
             delta_cantidad: delta,
             iva_alicuota_id: l.ivaAlicuotaId ?? stockById.get(l.stockId)?.ivaAlicuotaId ?? 5,
           };

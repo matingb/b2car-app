@@ -10,7 +10,7 @@ import { itemIconCircleStyle, styles } from "./lineaStyles";
 import { formatMoney, renderQtyXUnit } from "./lineaUtils";
 import Can from "@/app/components/auth/Can";
 import { Permission } from "@/lib/permissions";
-import { calcLineTotal } from "@/lib/calcLineTotal";
+import { calcLineTotal, calcLineSubtotal } from "@/lib/calcLineTotal";
 
 type Kind = "servicios" | "repuestos";
 
@@ -23,6 +23,9 @@ type Props = {
   horasFacturadas?: number | null;
   horasTrabajadas?: number | null;
   valorHoraEmpleado?: number | null;
+  subtotal?: number;
+  descuento?: number;
+  total?: number;
   detailContent?: React.ReactNode;
   sideContent?: React.ReactNode;
   allowTitleWrap?: boolean;
@@ -49,14 +52,28 @@ export default function ReadOnlyLineaCard({
   onDelete,
   canInteract,
   readOnly = false,
+  subtotal,
+  descuento,
+  total: totalProp,
 }: Props) {
-  const total = kind === "servicios"
+  const subtotalAmount = subtotal != null ? subtotal : (kind === "servicios"
+    ? calcLineSubtotal({
+        cantidad,
+        horas_facturadas: horasFacturadas,
+        precio_hora_facturada: unitario,
+      })
+    : cantidad * unitario);
+  const discountAmount = descuento != null ? descuento : 0;
+  const lineTotal = totalProp != null ? totalProp : (kind === "servicios"
     ? calcLineTotal({
-      cantidad,
-      horas_facturadas: horasFacturadas,
-      precio_hora_facturada: unitario,
-    })
-    : cantidad * unitario;
+        cantidad,
+        horas_facturadas: horasFacturadas,
+        precio_hora_facturada: unitario,
+        descuento: discountAmount,
+      })
+    : Math.max(0, subtotalAmount - discountAmount));
+
+  const total = lineTotal;
 
   const qtyXUnit = kind === "servicios" && horasFacturadas != null
     ? `${horasFacturadas}h × ${cantidad} × ${formatMoney(unitario)}`
@@ -184,7 +201,19 @@ export default function ReadOnlyLineaCard({
           {sideContent ?? (
             <>
               <Can permission={Permission.ArreglosPreciosView}>
-                <div css={readStyles.total}>{formatMoney(total)}</div>
+                <div style={{ textAlign: "right" }}>
+                  <div css={readStyles.total}>{formatMoney(total)}</div>
+                  {discountAmount > 0 && (
+                    <div style={{ fontSize: 11, color: COLOR.TEXT.SECONDARY, marginTop: 2 }}>
+                      <span style={{ textDecoration: "line-through", marginRight: 4 }}>
+                        {formatMoney(subtotalAmount)}
+                      </span>
+                      <span style={{ color: COLOR.STATUS.WARNING.TEXT, fontWeight: 600 }}>
+                        -{formatMoney(discountAmount)}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </Can>
 
               {!readOnly ? (

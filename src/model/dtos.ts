@@ -30,6 +30,8 @@ export interface ArregloDto {
     combustible_leido?: number | null;
     fecha: Date;
     observaciones: string;
+    subtotal?: number;
+    descuento?: number;
     precio_final: number;
     precio_sin_iva: number;
     esta_pago: boolean;
@@ -111,6 +113,8 @@ export type OperacionDTO = {
     taller_id: string | null;
     fecha: string;
     created_at: string;
+    subtotal?: number;
+    descuento?: number;
     monto_total?: number;
     total_pagado?: number;
     saldo_pendiente?: number;
@@ -235,6 +239,9 @@ export type OperacionLineaDTO = {
     cantidad: number;
     cantidad_cumplida?: number;
     monto_unitario: number;
+    subtotal?: number;
+    descuento?: number;
+    total?: number;
     delta_cantidad: number;
     iva_alicuota_id?: number | null;
     created_at: string;

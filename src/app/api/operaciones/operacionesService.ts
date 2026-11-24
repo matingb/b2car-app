@@ -57,6 +57,7 @@ export type CreateOperacionLineaInput = {
 	cantidad?: number;
 	cantidad_cumplida?: number;
 	monto_unitario?: number;
+	descuento?: number;
 	delta_cantidad?: number;
 	iva_alicuota_id?: number | null;
 };
@@ -117,6 +118,8 @@ export type OperacionListRow = {
 	cuenta_financiera_id: string | null;
 	cuenta_financiera_nombre: string | null;
 	monto: number | string | null;
+	subtotal?: number | string | null;
+	descuento?: number | string | null;
 	monto_total?: number | string | null;
 	total_pagado?: number | string | null;
 	saldo_pendiente?: number | string | null;
@@ -219,6 +222,7 @@ export function createOperacionesService(
 						cantidad: l.cantidad ?? 0,
 						cantidad_cumplida: l.cantidad_cumplida !== undefined ? l.cantidad_cumplida : undefined,
 						monto_unitario: l.monto_unitario ?? 0,
+						descuento: l.descuento !== undefined ? Number(l.descuento) : 0,
 						delta_cantidad: l.delta_cantidad ?? 0,
 						iva_alicuota_id: l.iva_alicuota_id ?? 5,
 				  }))
@@ -465,6 +469,19 @@ export function createOperacionesService(
 				},
 				error: null,
 			};
+		},
+
+		async actualizarDescuentos(
+			supabase: SupabaseClient,
+			operacionId: string,
+			lineas: Array<{ id: string; descuento: number }>
+		): Promise<{ data: unknown; error: ServiceError | null }> {
+			const { data, error } = await repository.actualizarDescuentos(supabase, operacionId, lineas);
+			if (error) {
+				logger.error("[operacionesService.actualizarDescuentos] error:", error);
+				return { data: null, error: toServiceError(error) };
+			}
+			return { data, error: null };
 		},
 	};
 }

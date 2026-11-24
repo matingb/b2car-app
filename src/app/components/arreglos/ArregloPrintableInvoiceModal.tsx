@@ -6,6 +6,7 @@ import {
   Download,
   FileText,
   Loader2,
+  Percent,
   Printer,
   X,
 } from "lucide-react";
@@ -37,6 +38,7 @@ export default function ArregloPrintableInvoiceModal({
   cliente: initialCliente,
 }: Props) {
   const [showPrices, setShowPrices] = useState(true);
+  const [showDiscounts, setShowDiscounts] = useState(false);
   const [showObservations, setShowObservations] = useState(true);
   const [isDownloading, setIsDownloading] = useState(false);
   const [cliente, setCliente] = useState<Cliente | null>(initialCliente ?? null);
@@ -90,9 +92,10 @@ export default function ArregloPrintableInvoiceModal({
       tenantName,
       cliente,
       showPrices,
+      showDiscounts: showPrices && showDiscounts,
       showObservations,
     });
-  }, [data, tenantName, cliente, showPrices, showObservations]);
+  }, [data, tenantName, cliente, showPrices, showDiscounts, showObservations]);
 
   const handlePrint = () => {
     const iframe = iframeRef.current;
@@ -208,6 +211,29 @@ export default function ArregloPrintableInvoiceModal({
                 onChange={setShowPrices}
                 label="Mostrar precios"
                 data-testid="toggle-show-prices"
+              />
+            </label>
+
+            {/* Toggle Descuento */}
+            <label
+              style={{
+                ...styles.toggleItem,
+                ...(!showPrices ? { opacity: 0.5, cursor: "not-allowed" } : {}),
+              }}
+            >
+              <div style={styles.toggleIconPill}>
+                <Percent
+                  size={15}
+                  color={showPrices && showDiscounts ? COLOR.ACCENT.PRIMARY : COLOR.TEXT.SECONDARY}
+                />
+              </div>
+              <span style={styles.toggleLabel}>Mostrar descuento</span>
+              <Toggle
+                checked={showPrices && showDiscounts}
+                onChange={setShowDiscounts}
+                disabled={!showPrices}
+                label="Mostrar descuento"
+                data-testid="toggle-show-discounts"
               />
             </label>
 

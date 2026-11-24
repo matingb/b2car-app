@@ -173,6 +173,108 @@ describe("buildArregloPrintableInvoiceHtml showPrices y showObservations options
     const html = buildArregloPrintableInvoiceHtml({ data: dataConNumero });
     expect(html).toContain("00000099");
   });
+
+  it("renderiza columnas de subtotal, descuento y total cuando showDiscounts es true", () => {
+    const dataConDescuento = {
+      ...baseData,
+      arreglo: {
+        ...baseData.arreglo,
+        precio_final: 170,
+        precio_sin_iva: 170,
+      },
+      detalles: [
+        {
+          id: "d1",
+          arreglo_id: "arreglo-options",
+          descripcion: "Mano de obra frenos",
+          cantidad: 1,
+          horas_facturadas: 2,
+          precio_hora_facturada: 50,
+          descuento: 20,
+          horas_trabajadas: null,
+          categoria_arreglo_id: null,
+          empleado_id: null,
+        },
+      ],
+      asignaciones: [
+        {
+          id: "op1",
+          tipo: "egreso",
+          taller_id: "t1",
+          created_at: "2026-01-01",
+          lineas: [
+            {
+              id: "l1",
+              operacion_id: "op1",
+              stock_id: "s1",
+              cantidad: 1,
+              monto_unitario: 100,
+              descuento: 10,
+              delta_cantidad: -1,
+              created_at: "2026-01-01",
+              categoria_arreglo_id: null,
+              empleado_id: null,
+              producto: { id: "p1", codigo: "PAS-01", nombre: "Pastillas" },
+            },
+          ],
+        },
+      ],
+    } as unknown as ArregloDetalleData;
+
+    const htmlConDescuentos = buildArregloPrintableInvoiceHtml({
+      data: dataConDescuento,
+      showPrices: true,
+      showDiscounts: true,
+    });
+
+    // Encabezados de tabla de servicios
+    expect(htmlConDescuentos).toContain('<th class="discount">Descuento</th>');
+    expect(htmlConDescuentos).toContain('<th class="total">Total</th>');
+    // Línea de servicios: subtotal $100, descuento $20, total $80
+    expect(htmlConDescuentos).toContain(formatArs(100, { maxDecimals: 2, minDecimals: 0 }));
+    expect(htmlConDescuentos).toContain(formatArs(20, { maxDecimals: 2, minDecimals: 0 }));
+    expect(htmlConDescuentos).toContain(formatArs(80, { maxDecimals: 2, minDecimals: 0 }));
+
+    // Línea de repuestos: unit $100, subtotal $100, desc $10, total $90
+    expect(htmlConDescuentos).toContain(formatArs(10, { maxDecimals: 2, minDecimals: 0 }));
+    expect(htmlConDescuentos).toContain(formatArs(90, { maxDecimals: 2, minDecimals: 0 }));
+
+    // Totales inferiores
+    expect(htmlConDescuentos).toContain("Subtotal bruto");
+    expect(htmlConDescuentos).toContain("Descuento");
+    expect(htmlConDescuentos).toContain(formatArs(200, { maxDecimals: 2, minDecimals: 0 })); // Bruto $100+$100
+    expect(htmlConDescuentos).toContain(`-${formatArs(30, { maxDecimals: 2, minDecimals: 0 })}`); // Descuento $20+$10
+    expect(htmlConDescuentos).toContain(formatArs(170, { maxDecimals: 2, minDecimals: 0 })); // Total final $170
+  });
+
+  it("no muestra columnas ni totales de descuento cuando showDiscounts es false", () => {
+    const dataConDescuento = {
+      ...baseData,
+      detalles: [
+        {
+          id: "d1",
+          arreglo_id: "arreglo-options",
+          descripcion: "Mano de obra frenos",
+          cantidad: 1,
+          horas_facturadas: 2,
+          precio_hora_facturada: 50,
+          descuento: 20,
+          horas_trabajadas: null,
+          categoria_arreglo_id: null,
+          empleado_id: null,
+        },
+      ],
+    } as unknown as ArregloDetalleData;
+
+    const htmlSinDescuentos = buildArregloPrintableInvoiceHtml({
+      data: dataConDescuento,
+      showPrices: true,
+      showDiscounts: false,
+    });
+
+    expect(htmlSinDescuentos).not.toContain('<th class="discount">Descuento</th>');
+    expect(htmlSinDescuentos).not.toContain("Subtotal bruto");
+  });
 });
 
 describe("formatInvoiceNumber", () => {

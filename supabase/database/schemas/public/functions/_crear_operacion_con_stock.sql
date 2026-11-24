@@ -1,18 +1,19 @@
 CREATE FUNCTION public._crear_operacion_con_stock (
-  p_tipo            public.tipo_operacion,
-  p_taller_id       uuid,
-  p_lineas          jsonb,
-  p_arreglo_id      uuid                     DEFAULT NULL::uuid,
-  p_cuenta_id       uuid                     DEFAULT NULL::uuid,
-  p_pagos           jsonb                    DEFAULT NULL::jsonb,
-  p_fecha           timestamp with time zone DEFAULT now(),
-  p_idempotency_key uuid                     DEFAULT NULL::uuid,
-  p_observaciones   text                     DEFAULT NULL::text,
-  p_estado_pago     text                     DEFAULT NULL::text,
-  p_monto_inicial   numeric                  DEFAULT NULL::numeric,
-  p_mover_stock     boolean                  DEFAULT true,
-  p_proveedor_id    uuid                     DEFAULT NULL::uuid,
-  p_cliente_id      uuid                     DEFAULT NULL::uuid
+  p_tipo                 public.tipo_operacion,
+  p_taller_id            uuid,
+  p_lineas               jsonb,
+  p_arreglo_id           uuid                     DEFAULT NULL::uuid,
+  p_cuenta_id            uuid                     DEFAULT NULL::uuid,
+  p_pagos                jsonb                    DEFAULT NULL::jsonb,
+  p_fecha                timestamp with time zone DEFAULT now(),
+  p_idempotency_key      uuid                     DEFAULT NULL::uuid,
+  p_observaciones        text                     DEFAULT NULL::text,
+  p_estado_pago          text                     DEFAULT NULL::text,
+  p_monto_inicial        numeric                  DEFAULT NULL::numeric,
+  p_mover_stock          boolean                  DEFAULT true,
+  p_proveedor_id         uuid                     DEFAULT NULL::uuid,
+  p_cliente_id           uuid                     DEFAULT NULL::uuid,
+  p_precios_incluyen_iva boolean                  DEFAULT true
 )
   RETURNS uuid
   LANGUAGE plpgsql
@@ -27,6 +28,7 @@ DECLARE
   v_stock_id           uuid;
   v_cantidad           integer;
   v_monto_unitario     numeric(12,2);
+  v_descuento          numeric(14,2);
   v_sentido            smallint;
   v_monto_total        numeric(12,2) := 0;
   v_total_pagos        numeric(14,2) := 0;
@@ -63,7 +65,9 @@ BEGIN
   v_sentido := CASE WHEN p_tipo = 'COMPRA' THEN 1::smallint ELSE -1::smallint END;
 
   IF p_lineas IS NOT NULL AND jsonb_array_length(p_lineas) > 0 THEN
-    SELECT COALESCE(SUM(((elem ->> 'cantidad')::integer * (elem ->> 'monto_unitario')::numeric)), 0)
+    SELECT COALESCE(SUM(
+      ((elem ->> 'cantidad')::integer * (elem ->> 'monto_unitario')::numeric) - COALESCE((elem ->> 'descuento')::numeric, 0)
+    ), 0)
     INTO v_monto_total
     FROM jsonb_array_elements(p_lineas) AS elem;
   END IF;
@@ -78,8 +82,8 @@ BEGIN
     INSERT INTO public.operaciones_venta (operacion_id, tenant_id, cliente_id)
     VALUES (v_operacion_id, v_tenant_id, p_cliente_id);
   ELSIF p_tipo = 'COMPRA' THEN
-    INSERT INTO public.operaciones_compra (operacion_id, tenant_id, proveedor_id)
-    VALUES (v_operacion_id, v_tenant_id, p_proveedor_id);
+    INSERT INTO public.operaciones_compra (operacion_id, tenant_id, proveedor_id, precios_incluyen_iva)
+    VALUES (v_operacion_id, v_tenant_id, p_proveedor_id, COALESCE(p_precios_incluyen_iva, true));
   ELSIF p_tipo = 'ASIGNACION_ARREGLO' THEN
     INSERT INTO public.operaciones_asignacion_arreglo (operacion_id, tenant_id, arreglo_id)
     VALUES (v_operacion_id, v_tenant_id, p_arreglo_id);
@@ -95,16 +99,17 @@ BEGIN
       v_stock_id := (v_linea ->> 'stock_id')::uuid;
       v_cantidad := (v_linea ->> 'cantidad')::integer;
       v_monto_unitario := COALESCE((v_linea ->> 'monto_unitario')::numeric, 0);
+      v_descuento := COALESCE((v_linea ->> 'descuento')::numeric, 0);
       v_categoria_arreglo := (v_linea ->> 'categoria_arreglo_id')::uuid;
       v_empleado_id := (v_linea ->> 'empleado_id')::uuid;
       v_iva_alicuota := COALESCE((v_linea ->> 'iva_alicuota_id')::smallint, 5::smallint);
 
       INSERT INTO public.operaciones_lineas (
         operacion_id, stock_id, cantidad, monto_unitario, sentido,
-        categoria_arreglo_id, empleado_id, iva_alicuota_id
+        categoria_arreglo_id, empleado_id, iva_alicuota_id, descuento
       ) VALUES (
         v_operacion_id, v_stock_id, v_cantidad, v_monto_unitario, v_sentido,
-        v_categoria_arreglo, v_empleado_id, v_iva_alicuota
+        v_categoria_arreglo, v_empleado_id, v_iva_alicuota, v_descuento
       ) RETURNING id INTO v_linea_id;
 
       -- Determinar cantidad a cumplir físicamente
@@ -116,7 +121,6 @@ BEGIN
         v_cantidad_cumpl := 0;
       END IF;
 
-      -- Si v_cantidad_cumpl > 0, generar impacto de stock inicial
       IF v_cantidad_cumpl > 0 THEN
         INSERT INTO public.operaciones_movimiento_stock (
           tenant_id, operacion_id, operacion_linea_id, stock_id, cantidad, fecha, motivo
@@ -180,7 +184,7 @@ END;
 $function$;
 
 REVOKE ALL ON FUNCTION public._crear_operacion_con_stock(public.tipo_operacion, uuid, jsonb, uuid, uuid, jsonb, timestamp
-  WITH time zone, uuid, text, text, numeric, boolean, uuid, uuid) FROM PUBLIC;
+  WITH time zone, uuid, text, text, numeric, boolean, uuid, uuid, boolean) FROM PUBLIC;
 
 GRANT ALL ON FUNCTION public._crear_operacion_con_stock(public.tipo_operacion, uuid, jsonb, uuid, uuid, jsonb, timestamp
-  WITH time zone, uuid, text, text, numeric, boolean, uuid, uuid) TO service_role;
+  WITH time zone, uuid, text, text, numeric, boolean, uuid, uuid, boolean) TO service_role;

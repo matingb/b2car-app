@@ -1,18 +1,19 @@
 CREATE FUNCTION public.rpc_crear_operacion_con_stock (
-  p_tipo            public.tipo_operacion,
-  p_taller_id       uuid,
-  p_lineas          jsonb,
-  p_arreglo_id      uuid                     DEFAULT NULL::uuid,
-  p_cuenta_id       uuid                     DEFAULT NULL::uuid,
-  p_pagos           jsonb                    DEFAULT NULL::jsonb,
-  p_fecha           timestamp with time zone DEFAULT now(),
-  p_idempotency_key uuid                     DEFAULT NULL::uuid,
-  p_observaciones   text                     DEFAULT NULL::text,
-  p_estado_pago     text                     DEFAULT NULL::text,
-  p_monto_inicial   numeric                  DEFAULT NULL::numeric,
-  p_mover_stock     boolean                  DEFAULT true,
-  p_proveedor_id    uuid                     DEFAULT NULL::uuid,
-  p_cliente_id      uuid                     DEFAULT NULL::uuid
+  p_tipo                 public.tipo_operacion,
+  p_taller_id            uuid,
+  p_lineas               jsonb,
+  p_arreglo_id           uuid                     DEFAULT NULL::uuid,
+  p_cuenta_id            uuid                     DEFAULT NULL::uuid,
+  p_pagos                jsonb                    DEFAULT NULL::jsonb,
+  p_fecha                timestamp with time zone DEFAULT now(),
+  p_idempotency_key      uuid                     DEFAULT NULL::uuid,
+  p_observaciones        text                     DEFAULT NULL::text,
+  p_estado_pago          text                     DEFAULT NULL::text,
+  p_monto_inicial        numeric                  DEFAULT NULL::numeric,
+  p_mover_stock          boolean                  DEFAULT true,
+  p_proveedor_id         uuid                     DEFAULT NULL::uuid,
+  p_cliente_id           uuid                     DEFAULT NULL::uuid,
+  p_precios_incluyen_iva boolean                  DEFAULT true
 )
   RETURNS uuid
   LANGUAGE plpgsql
@@ -38,16 +39,17 @@ BEGIN
     p_monto_inicial := p_monto_inicial,
     p_mover_stock := p_mover_stock,
     p_proveedor_id := p_proveedor_id,
-    p_cliente_id := p_cliente_id
+    p_cliente_id := p_cliente_id,
+    p_precios_incluyen_iva := p_precios_incluyen_iva
   );
 END;
 $function$;
 
 REVOKE ALL ON FUNCTION public.rpc_crear_operacion_con_stock(public.tipo_operacion, uuid, jsonb, uuid, uuid, jsonb, timestamp
-  WITH time zone, uuid, text, text, numeric, boolean, uuid, uuid) FROM PUBLIC;
+  WITH time zone, uuid, text, text, numeric, boolean, uuid, uuid, boolean) FROM PUBLIC;
 
 GRANT ALL ON FUNCTION public.rpc_crear_operacion_con_stock(public.tipo_operacion, uuid, jsonb, uuid, uuid, jsonb, timestamp
-  WITH time zone, uuid, text, text, numeric, boolean, uuid, uuid) TO authenticated;
+  WITH time zone, uuid, text, text, numeric, boolean, uuid, uuid, boolean) TO authenticated;
 
 GRANT ALL ON FUNCTION public.rpc_crear_operacion_con_stock(public.tipo_operacion, uuid, jsonb, uuid, uuid, jsonb, timestamp
-  WITH time zone, uuid, text, text, numeric, boolean, uuid, uuid) TO service_role;
+  WITH time zone, uuid, text, text, numeric, boolean, uuid, uuid, boolean) TO service_role;

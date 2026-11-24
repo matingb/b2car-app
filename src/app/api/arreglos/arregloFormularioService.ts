@@ -22,7 +22,7 @@ export const arregloFormularioService = {
   ): Promise<ServiceResult<DetalleArregloFormulario | null>> {
     const { data: detalleRows, error } = await supabase
       .from("detalle_form_custom")
-      .select("id, arreglo_id, formulario_id:config_id, costo, metadata, created_at, updated_at")
+      .select("id, arreglo_id, formulario_id:config_id, costo, subtotal, descuento, total, metadata, created_at, updated_at")
       .eq("arreglo_id", arregloId)
       .order("created_at", { ascending: false })
       .limit(1);
@@ -46,6 +46,9 @@ export const arregloFormularioService = {
             ? String(row.formulario_id)
             : null,
         costo: Number(row.costo) || 0,
+        subtotal: Number(row.subtotal) || 0,
+        descuento: Number(row.descuento) || 0,
+        total: Number(row.total) || 0,
         metadata: Array.isArray(row.metadata)
           ? (row.metadata as ArregloFormularioLineaValue[])
           : [],
@@ -148,6 +151,7 @@ export const arregloFormularioService = {
       ? String(detalleFormulario.formulario_id ?? detalleFormulario.config_id ?? "").trim() || null
       : undefined;
     const costo = Number(detalleFormulario.costo);
+    const descuento = detalleFormulario.descuento !== undefined ? Number(detalleFormulario.descuento) : undefined;
     const metadata = Array.isArray(detalleFormulario.metadata)
       ? detalleFormulario.metadata
       : [];
@@ -175,12 +179,16 @@ export const arregloFormularioService = {
     if (detalleId) {
       const updatePayload: {
         costo: number;
+        descuento?: number;
         metadata: ArregloFormularioLineaValue[];
         config_id?: string | null;
       } = {
         costo,
         metadata,
       };
+      if (descuento !== undefined) {
+        updatePayload.descuento = Math.max(0, descuento);
+      }
       if (hasConfigId) {
         updatePayload.config_id = configId;
       }
@@ -202,6 +210,7 @@ export const arregloFormularioService = {
             arreglo_id: arregloId,
             config_id: configId ?? null,
             costo,
+            ...(descuento !== undefined ? { descuento: Math.max(0, descuento) } : {}),
             metadata,
           },
         ]);

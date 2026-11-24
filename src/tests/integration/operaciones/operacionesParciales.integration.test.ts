@@ -348,4 +348,43 @@ describe("Integration: Operaciones - Stock Parcial y Diferido", () => {
       });
     });
   });
+
+  describe("Venta con descuento", () => {
+    it("crea una venta con líneas con descuento autocalculando subtotal, descuento y monto_total", async () => {
+      const { cliente } = await dadoUnClienteParticularConVehiculo();
+      const { stockId } = await dadoQueExisteUnProductoConStock({
+        stock: { cantidad: 20, taller_id: SEED.tallerId },
+      });
+
+      const { data: operacion, error } = await operacionesService.create(testClient, {
+        tipo: "VENTA",
+        taller_id: SEED.tallerId,
+        cliente_id: cliente.id,
+        estado_pago: "PENDIENTE",
+        lineas: [
+          {
+            stock_id: stockId,
+            cantidad: 3,
+            monto_unitario: 5000,
+            descuento: 2000,
+            delta_cantidad: -3,
+          },
+        ],
+      });
+
+      expect(error).toBeNull();
+      expect(operacion).toBeDefined();
+
+      const { data: op, error: opError } = await testClient
+        .from("operaciones")
+        .select("subtotal, descuento, monto_total")
+        .eq("id", operacion!.id)
+        .single();
+
+      expect(opError).toBeNull();
+      expect(Number(op?.subtotal)).toBe(15000);
+      expect(Number(op?.descuento)).toBe(2000);
+      expect(Number(op?.monto_total)).toBe(13000);
+    });
+  });
 });

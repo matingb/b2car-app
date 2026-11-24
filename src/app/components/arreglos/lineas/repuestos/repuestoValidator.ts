@@ -180,6 +180,21 @@ export function validateRepuestoDraft(
   return validateExistingStock(draft, cantidad, stockId, ctx, env);
 }
 
+function parseAndValidateDescuento(
+  rawDescuento: unknown,
+  subtotal: number
+): { ok: true; descuento: number } | { ok: false; message: string } {
+  const str = String(rawDescuento ?? "").trim();
+  const descuento = str === "" ? 0 : safeNumber(str);
+  if (!Number.isFinite(descuento) || descuento < 0) {
+    return { ok: false, message: "Descuento inválido" };
+  }
+  if (descuento > subtotal) {
+    return { ok: false, message: "El descuento no puede superar el subtotal" };
+  }
+  return { ok: true, descuento };
+}
+
 function validateNewProduct(
   draft: RepuestoDraft,
   cantidad: number,
@@ -204,6 +219,12 @@ function validateNewProduct(
   const conflict = getNewProductConflictMessage(codigo, env, editingId);
   if (conflict) return { ok: false, message: conflict };
 
+  const subtotal = cantidad * precioVenta;
+  const descResult = parseAndValidateDescuento(draft.descuento, subtotal);
+  if (!descResult.ok) return descResult;
+  const descuento = descResult.descuento;
+  const includeDescuento = descuento > 0 || (ctx.mode === "edit" && String(draft.descuento ?? "").trim() !== "");
+
   return {
     ok: true,
     value: {
@@ -214,6 +235,7 @@ function validateNewProduct(
       precio_venta: precioVenta,
       cantidad,
       monto_unitario: precioVenta,
+      ...(includeDescuento ? { descuento } : {}),
       categoria_arreglo_id: draft.categoriaArregloId || null,
       empleado_id: draft.empleadoId || null,
     },
@@ -243,6 +265,12 @@ function validateExistingStock(
   const faltante = stockFaltante(cantidad, baseQty, Number(stock.stockActual) || 0);
   const hadPendingPurchase = env.deferred && ctx.mode === "edit" && ctx.item?.precioCompra != null;
 
+  const subtotal = cantidad * montoUnitario;
+  const descResult = parseAndValidateDescuento(draft.descuento, subtotal);
+  if (!descResult.ok) return descResult;
+  const descuento = descResult.descuento;
+  const includeDescuento = descuento > 0 || (ctx.mode === "edit" && String(draft.descuento ?? "").trim() !== "");
+
   if (faltante > 0) {
     const rawPrecioCompra = draft.precioCompra;
     if (rawPrecioCompra === "" || rawPrecioCompra == null) {
@@ -259,6 +287,7 @@ function validateExistingStock(
         stock_id: stockId,
         cantidad,
         monto_unitario: montoUnitario,
+        ...(includeDescuento ? { descuento } : {}),
         precio_compra: precioCompra,
         categoria_arreglo_id: draft.categoriaArregloId || null,
         empleado_id: draft.empleadoId || null,
@@ -279,6 +308,7 @@ function validateExistingStock(
         stock_id: stockId,
         cantidad,
         monto_unitario: montoUnitario,
+        ...(includeDescuento ? { descuento } : {}),
         precio_compra: precioCompra,
         categoria_arreglo_id: draft.categoriaArregloId || null,
         empleado_id: draft.empleadoId || null,
@@ -293,6 +323,7 @@ function validateExistingStock(
       stock_id: stockId,
       cantidad,
       monto_unitario: montoUnitario,
+      ...(includeDescuento ? { descuento } : {}),
       categoria_arreglo_id: draft.categoriaArregloId || null,
       empleado_id: draft.empleadoId || null,
     },

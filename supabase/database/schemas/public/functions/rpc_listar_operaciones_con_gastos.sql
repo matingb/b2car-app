@@ -18,6 +18,8 @@ CREATE FUNCTION public.rpc_listar_operaciones_con_gastos (
     cuenta_financiera_id     uuid,
     cuenta_financiera_nombre text,
     monto                    numeric,
+    subtotal                 numeric,
+    descuento                numeric,
     monto_total              numeric,
     total_pagado             numeric,
     saldo_pendiente          numeric,
@@ -47,7 +49,9 @@ CREATE FUNCTION public.rpc_listar_operaciones_con_gastos (
         SELECT jsonb_agg(jsonb_build_object(
           'id', l.id, 'operacion_id', l.operacion_id, 'stock_id', l.stock_id,
           'cantidad', l.cantidad, 'cantidad_cumplida', l.cantidad_cumplida,
-          'monto_unitario', l.monto_unitario, 'delta_cantidad', l.delta_cantidad,
+          'monto_unitario', l.monto_unitario, 'subtotal', l.subtotal,
+          'descuento', l.descuento, 'total', l.total,
+          'delta_cantidad', l.delta_cantidad,
           'created_at', l.created_at, 'nombre', p.nombre, 'codigo', p.codigo
         ) ORDER BY l.created_at, l.id)
         FROM public.operaciones_lineas AS l
@@ -83,6 +87,8 @@ CREATE FUNCTION public.rpc_listar_operaciones_con_gastos (
       COALESCE(oi.cuenta_id, oap.cuenta_id, ot.cuenta_origen_id, oaf.cuenta_id) AS cuenta_financiera_id,
       COALESCE(c_ing.nombre, c_aper.nombre, c_orig.nombre, c_ajuste.nombre) AS cuenta_financiera_nombre,
       o.monto_total AS monto,
+      o.subtotal,
+      o.descuento,
       o.monto_total,
       o.total_pagado,
       GREATEST(0, COALESCE(o.monto_total, 0) - COALESCE(o.total_pagado, 0)) AS saldo_pendiente,
@@ -137,7 +143,7 @@ CREATE FUNCTION public.rpc_listar_operaciones_con_gastos (
   SELECT
     r.id, r.tipo, r.taller_id, r.fecha, r.created_at, r.lineas, r.gasto_id,
     r.descripcion, r.categoria_gasto, r.cuenta_financiera_id, r.cuenta_financiera_nombre,
-    r.monto, r.monto_total, r.total_pagado, r.saldo_pendiente, r.esta_pago,
+    r.monto, r.subtotal, r.descuento, r.monto_total, r.total_pagado, r.saldo_pendiente, r.esta_pago,
     r.estado_pago, r.estado_stock, r.arreglo_id, c.total AS total_count,
     r.observaciones, r.proveedor_id, r.proveedor_nombre, r.cliente_id, r.cliente_nombre
   FROM rows r

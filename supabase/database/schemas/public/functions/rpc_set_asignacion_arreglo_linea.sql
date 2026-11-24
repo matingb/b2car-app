@@ -5,7 +5,8 @@ CREATE FUNCTION public.rpc_set_asignacion_arreglo_linea (
   p_cantidad             integer,
   p_monto_unitario       numeric DEFAULT 0,
   p_categoria_arreglo_id uuid    DEFAULT NULL::uuid,
-  p_empleado_id          uuid    DEFAULT NULL::uuid
+  p_empleado_id          uuid    DEFAULT NULL::uuid,
+  p_descuento            numeric DEFAULT 0
 )
   RETURNS uuid
   LANGUAGE plpgsql
@@ -31,6 +32,7 @@ BEGIN
   IF p_stock_id IS NULL THEN RAISE EXCEPTION 'stock_id requerido' USING ERRCODE = '22023'; END IF;
   IF p_cantidad IS NULL OR p_cantidad <= 0 THEN RAISE EXCEPTION 'cantidad inválida (%)', p_cantidad USING ERRCODE = '22023'; END IF;
   IF p_monto_unitario IS NULL OR p_monto_unitario < 0 THEN RAISE EXCEPTION 'monto_unitario inválido (%)', p_monto_unitario USING ERRCODE = '22023'; END IF;
+  IF p_descuento IS NULL OR p_descuento < 0 THEN RAISE EXCEPTION 'descuento inválido (%)', p_descuento USING ERRCODE = '22023'; END IF;
 
   SELECT a.fecha INTO v_arreglo_fecha
   FROM public.arreglos a
@@ -69,10 +71,10 @@ BEGIN
     -- Alta de línea
     INSERT INTO public.operaciones_lineas (
       operacion_id, stock_id, cantidad, monto_unitario, sentido,
-      categoria_arreglo_id, empleado_id
+      categoria_arreglo_id, empleado_id, descuento
     ) VALUES (
       v_operacion_id, p_stock_id, p_cantidad, p_monto_unitario, -1,
-      p_categoria_arreglo_id, p_empleado_id
+      p_categoria_arreglo_id, p_empleado_id, COALESCE(p_descuento, 0)
     ) RETURNING id INTO v_linea_id;
 
     INSERT INTO public.operaciones_movimiento_stock (
@@ -89,7 +91,8 @@ BEGIN
       SET cantidad = p_cantidad,
           monto_unitario = p_monto_unitario,
           categoria_arreglo_id = p_categoria_arreglo_id,
-          empleado_id = p_empleado_id
+          empleado_id = p_empleado_id,
+          descuento = COALESCE(p_descuento, descuento)
       WHERE id = v_linea_id;
 
       INSERT INTO public.operaciones_movimiento_stock (
@@ -99,14 +102,14 @@ BEGIN
         -v_diff, COALESCE(v_arreglo_fecha, now()), 'Aumento de asignación a arreglo'
       );
     ELSIF p_cantidad < v_linea_cant THEN
-      -- Al bajar la cantidad, primero la devolución (borrado/reemplazo de OMS) y después baja la cantidad
       DELETE FROM public.operaciones_movimiento_stock WHERE operacion_linea_id = v_linea_id;
 
       UPDATE public.operaciones_lineas
       SET cantidad = p_cantidad,
           monto_unitario = p_monto_unitario,
           categoria_arreglo_id = p_categoria_arreglo_id,
-          empleado_id = p_empleado_id
+          empleado_id = p_empleado_id,
+          descuento = COALESCE(p_descuento, descuento)
       WHERE id = v_linea_id;
 
       INSERT INTO public.operaciones_movimiento_stock (
@@ -119,7 +122,8 @@ BEGIN
       UPDATE public.operaciones_lineas
       SET monto_unitario = p_monto_unitario,
           categoria_arreglo_id = p_categoria_arreglo_id,
-          empleado_id = p_empleado_id
+          empleado_id = p_empleado_id,
+          descuento = COALESCE(p_descuento, descuento)
       WHERE id = v_linea_id;
     END IF;
   END IF;
@@ -128,8 +132,8 @@ BEGIN
 END;
 $function$;
 
-REVOKE ALL ON FUNCTION public.rpc_set_asignacion_arreglo_linea(uuid, uuid, uuid, integer, numeric, uuid, uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.rpc_set_asignacion_arreglo_linea(uuid, uuid, uuid, integer, numeric, uuid, uuid, numeric) FROM PUBLIC;
 
-GRANT ALL ON FUNCTION public.rpc_set_asignacion_arreglo_linea(uuid, uuid, uuid, integer, numeric, uuid, uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.rpc_set_asignacion_arreglo_linea(uuid, uuid, uuid, integer, numeric, uuid, uuid, numeric) TO authenticated;
 
-GRANT ALL ON FUNCTION public.rpc_set_asignacion_arreglo_linea(uuid, uuid, uuid, integer, numeric, uuid, uuid) TO service_role;
+GRANT ALL ON FUNCTION public.rpc_set_asignacion_arreglo_linea(uuid, uuid, uuid, integer, numeric, uuid, uuid, numeric) TO service_role;

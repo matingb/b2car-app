@@ -24,13 +24,14 @@ BEGIN
   END IF;
 
   INSERT INTO public.detalle_form_custom (
-    tenant_id, arreglo_id, config_id, costo, metadata
+    tenant_id, arreglo_id, config_id, costo, metadata, descuento
   )
   VALUES (
     v_tenant_id, p_arreglo_id,
     NULLIF(coalesce(p_form ->> 'formulario_id', p_form ->> 'config_id', ''), '')::uuid,
     COALESCE((p_form ->> 'costo')::numeric, 0),
-    COALESCE(p_form -> 'metadata', '[]'::jsonb)
+    COALESCE(p_form -> 'metadata', '[]'::jsonb),
+    COALESCE(NULLIF(p_form ->> 'descuento', '')::numeric, 0)
   );
 END;
 $function$;

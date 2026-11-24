@@ -11,6 +11,7 @@ export type EditableLineaDraft = {
   qty: string;
   unit: string;
   purchaseUnit?: string;
+  descuento?: string;
 };
 
 type Props = {
@@ -35,7 +36,8 @@ export default function EditableLineaCard({
 
   const qty = safeInt(draft.qty);
   const unit = safeNumber(draft.unit);
-  const totalText = formatMoney(qty * unit);
+  const descuento = safeNumber(draft.descuento);
+  const totalText = formatMoney(Math.max(0, qty * unit - descuento));
 
   const confirmEnabled = interactionEnabled && validation.ok && !submitting;
   const cancelEnabled = interactionEnabled && !submitting;
@@ -77,11 +79,13 @@ export default function EditableLineaCard({
         cantidad={draft.qty}
         precioCompra={draft.purchaseUnit}
         precioVenta={draft.unit}
+        descuento={draft.descuento}
         showPurchaseUnit={showPurchaseUnit}
         canInteract={interactionEnabled}
         onCantidadChange={(qty) => onDraftChange({ qty })}
         onPrecioCompraChange={(purchaseUnit) => onDraftChange({ purchaseUnit })}
         onPrecioVentaChange={(unit) => onDraftChange({ unit })}
+        onDescuentoChange={(descuento) => onDraftChange({ descuento })}
       />
     </LineaCardShell>
   );

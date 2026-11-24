@@ -28,7 +28,8 @@ BEGIN
       p_cantidad := (v_item ->> 'cantidad')::integer,
       p_categoria_arreglo_id := NULLIF(v_item ->> 'categoria_arreglo_id', '')::uuid,
       p_empleado_id := NULLIF(v_item ->> 'empleado_id', '')::uuid,
-      p_cuenta_id := p_cuenta_id
+      p_cuenta_id := p_cuenta_id,
+      p_descuento := COALESCE(NULLIF(v_item ->> 'descuento', '')::numeric, 0)
     );
   END LOOP;
 END;

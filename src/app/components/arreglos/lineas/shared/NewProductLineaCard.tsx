@@ -11,6 +11,7 @@ export type NewProductLineaDraft = {
   qty: string;
   purchaseUnit: string;
   saleUnit: string;
+  descuento?: string;
 };
 
 type Props = {
@@ -33,7 +34,8 @@ export default function NewProductLineaCard({
 
   const qty = safeInt(draft.qty);
   const saleUnit = safeNumber(draft.saleUnit);
-  const totalText = formatMoney(qty * saleUnit);
+  const descuento = safeNumber(draft.descuento);
+  const totalText = formatMoney(Math.max(0, qty * saleUnit - descuento));
 
   const confirmEnabled = interactionEnabled && validation.ok && !submitting;
   const cancelEnabled = interactionEnabled && !submitting;
@@ -65,11 +67,13 @@ export default function NewProductLineaCard({
         cantidad={draft.qty}
         precioCompra={draft.purchaseUnit}
         precioVenta={draft.saleUnit}
+        descuento={draft.descuento}
         showPurchaseUnit={true}
         canInteract={interactionEnabled}
         onCantidadChange={(qty) => onDraftChange({ qty })}
         onPrecioCompraChange={(purchaseUnit) => onDraftChange({ purchaseUnit })}
         onPrecioVentaChange={(saleUnit) => onDraftChange({ saleUnit })}
+        onDescuentoChange={(descuento) => onDraftChange({ descuento })}
       />
     </LineaCardShell>
   );

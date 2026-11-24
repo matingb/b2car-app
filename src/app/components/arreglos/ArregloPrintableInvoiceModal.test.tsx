@@ -316,4 +316,26 @@ describe("ArregloPrintableInvoiceModal", () => {
     expect(screen.queryByTestId("toggle-show-observations")).toBeNull();
     expect(screen.getByTestId("toggle-show-prices")).toBeDefined();
   });
+
+  it("permite alternar el toggle de descuento solo cuando mostrar precios está activo", () => {
+    render(
+      <ArregloPrintableInvoiceModal
+        open={true}
+        onClose={vi.fn()}
+        data={sampleData}
+        cliente={sampleCliente}
+      />
+    );
+
+    const togglePrices = screen.getByTestId("toggle-show-prices");
+    const toggleDiscounts = screen.getByTestId("toggle-show-discounts");
+
+    expect(toggleDiscounts).not.toBeDisabled();
+
+    fireEvent.click(togglePrices);
+    expect(toggleDiscounts).toBeDisabled();
+
+    fireEvent.click(togglePrices);
+    expect(toggleDiscounts).not.toBeDisabled();
+  });
 });

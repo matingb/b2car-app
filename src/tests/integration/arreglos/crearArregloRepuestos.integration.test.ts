@@ -4,7 +4,8 @@ import { supabaseArregloRepository } from "@/app/api/arreglos/arregloRepository"
 import { arregloCompletoService } from "@/app/api/arreglos/arregloCompletoService";
 import { testClient, SEED } from "@/tests/integration";
 import { createCreateArregloRequest } from "@/tests/factories";
-import { dadoUnaCuentaFinanciera, expectSaldoCuenta } from "../helpers/integrationFixtures";
+import { dadoUnaCuentaFinanciera, expectSaldoCuenta, dadoUnArreglo } from "../helpers/integrationFixtures";
+import { dadaUnaCategoria, dadoUnEmpleado } from "../dashboard/dashboardHelpers";
 import {
   dadoQueExisteUnProductoConStock,
   expectCantidadDeStock,
@@ -487,5 +488,52 @@ describe("Integration - Creación de arreglos", () => {
 
     await expectCantidadDeStock(stockId, cantidadInicial);
     await expectArregloSinRepuestos(arregloId);
+  });
+
+  it("autocalcula subtotal, descuento y total en detalle_arreglo y actualiza cabecera del arreglo", async () => {
+    const categoria = await dadaUnaCategoria("Mecánica Pesada");
+    const empleado = await dadoUnEmpleado("Pedro", "Mecánico");
+    const arreglo = await dadoUnArreglo({ fecha: "2042-05-10T12:00:00-03:00", tasa_iva: 0.21, precios_incluyen_iva: true });
+
+    // Detalle con cantidad 2, horas 1.5, precio 5000 => subtotal 15000, descuento 3000 => total 12000
+    const { data: detalleInsertado, error: insertError } = await testClient.from("detalle_arreglo").insert({
+      tenant_id: SEED.tenantId,
+      arreglo_id: arreglo.id,
+      descripcion: "Detalle de facturación con descuento",
+      cantidad: 2,
+      precio_hora_facturada: 5000,
+      horas_facturadas: 1.5,
+      horas_trabajadas: 1,
+      categoria_arreglo_id: categoria,
+      empleado_id: empleado,
+      descuento: 3000,
+    }).select("id").single();
+
+    expect(insertError).toBeNull();
+    const detalleId = detalleInsertado!.id;
+
+    // Verificar en base de datos
+    const { data: detalle, error: detError } = await testClient
+      .from("detalle_arreglo")
+      .select("subtotal, descuento, total")
+      .eq("id", detalleId)
+      .single();
+
+    expect(detError).toBeNull();
+    expect(Number(detalle?.subtotal)).toBe(15000);
+    expect(Number(detalle?.descuento)).toBe(3000);
+    expect(Number(detalle?.total)).toBe(12000);
+
+    // Verificar que la cabecera del arreglo acumuló subtotal, descuento y precio_final
+    const { data: arr, error: arrError } = await testClient
+      .from("arreglos")
+      .select("subtotal, descuento, precio_final")
+      .eq("id", arreglo.id)
+      .single();
+
+    expect(arrError).toBeNull();
+    expect(Number(arr?.subtotal)).toBe(15000);
+    expect(Number(arr?.descuento)).toBe(3000);
+    expect(Number(arr?.precio_final)).toBe(12000);
   });
 });

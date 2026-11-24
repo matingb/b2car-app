@@ -23,6 +23,7 @@ BEGIN
     'empleados_detallados', public.arreglos_empleados_detallados(a),
     'estado', a.estado, 'descripcion', a.descripcion, 'kilometraje_leido', a.kilometraje_leido,
     'combustible_leido', a.combustible_leido, 'fecha', a.fecha, 'observaciones', a.observaciones,
+    'subtotal', a.subtotal, 'descuento', a.descuento,
     'precio_final', a.precio_final, 'precio_sin_iva', a.precio_sin_iva, 'esta_pago', a.esta_pago,
     'precios_incluyen_iva', a.precios_incluyen_iva, 'tasa_iva', a.tasa_iva,
     'total_cobrado', a.total_cobrado,
@@ -40,6 +41,7 @@ BEGIN
     'cantidad', d.cantidad, 'precio_hora_facturada', d.precio_hora_facturada,
     'horas_facturadas', d.horas_facturadas, 'horas_trabajadas', d.horas_trabajadas,
     'valor_hora_empleado', CASE WHEN v_puede_ver_costos THEN d.valor_hora_empleado ELSE NULL END,
+    'subtotal', d.subtotal, 'descuento', d.descuento, 'total', d.total,
     'categoria_arreglo_id', d.categoria_arreglo_id, 'empleado_id', d.empleado_id,
     'created_at', d.created_at, 'updated_at', d.updated_at
   ) ORDER BY d.created_at), '[]'::jsonb) INTO v_detalles
@@ -49,7 +51,8 @@ BEGIN
     'id', o.id, 'tipo', o.tipo, 'taller_id', o.taller_id, 'created_at', o.created_at,
     'lineas', coalesce((SELECT jsonb_agg(jsonb_build_object(
       'id', l.id, 'operacion_id', l.operacion_id, 'stock_id', l.stock_id, 'cantidad', l.cantidad,
-      'monto_unitario', l.monto_unitario, 'delta_cantidad', l.delta_cantidad, 'created_at', l.created_at,
+      'monto_unitario', l.monto_unitario, 'subtotal', l.subtotal, 'descuento', l.descuento, 'total', l.total,
+      'delta_cantidad', l.delta_cantidad, 'created_at', l.created_at,
       'categoria_arreglo_id', l.categoria_arreglo_id, 'empleado_id', l.empleado_id,
       'producto', jsonb_build_object('id', p.id, 'codigo', p.codigo, 'nombre', p.nombre,
         'precio_unitario', p.precio_unitario, 'costo_unitario', p.costo_unitario,

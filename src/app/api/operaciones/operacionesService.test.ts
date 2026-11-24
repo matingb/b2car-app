@@ -147,6 +147,37 @@ describe("operacionesService.create", () => {
 		expect(rpc.mock.calls[0][1]).not.toHaveProperty("p_cargos");
 	});
 
+	it("reenvía descuento en las líneas a rpc_crear_operacion_con_stock", async () => {
+		const operacionId = "11111111-1111-4111-8111-111111111111";
+		const rpc = vi.fn().mockResolvedValue({ data: operacionId, error: null });
+		vi.spyOn(operacionesService, "getById").mockResolvedValue({ data: null, error: null });
+		const supabase = { rpc } as unknown as SupabaseClient;
+
+		await operacionesService.create(supabase, {
+			tipo: "VENTA",
+			taller_id: "22222222-2222-4222-8222-222222222222",
+			lineas: [
+				{
+					stock_id: "55555555-5555-4555-8555-555555555555",
+					cantidad: 2,
+					monto_unitario: 10000,
+					descuento: 2500,
+				},
+			],
+		});
+
+		expect(rpc).toHaveBeenCalledWith("rpc_crear_operacion_con_stock", expect.objectContaining({
+			p_lineas: [
+				expect.objectContaining({
+					stock_id: "55555555-5555-4555-8555-555555555555",
+					cantidad: 2,
+					monto_unitario: 10000,
+					descuento: 2500,
+				}),
+			],
+		}));
+	});
+
 	it("reenvía parámetros de GASTO a rpc_crear_operacion_gasto", async () => {
 		const operacionId = "11111111-1111-4111-8111-111111111111";
 		const rpc = vi.fn().mockResolvedValue({ data: operacionId, error: null });
@@ -518,6 +549,38 @@ describe("operacionesService.revertirStock", () => {
 		);
 
 		expect(result.error).toBe(ServiceError.StockInsuficiente);
+		expect(result.data).toBeNull();
+	});
+});
+
+describe("operacionesService.actualizarDescuentos", () => {
+	it("llama a la RPC rpc_actualizar_descuentos_operacion y devuelve el resultado", async () => {
+		const rpc = vi.fn().mockResolvedValue({
+			data: { id: "op-1", subtotal: 10000, descuento: 2000, monto_total: 8000 },
+			error: null,
+		});
+		const supabase = { rpc } as unknown as SupabaseClient;
+
+		const lineas = [{ id: "l-1", descuento: 2000 }];
+		const result = await operacionesService.actualizarDescuentos(supabase, "op-1", lineas);
+
+		expect(rpc).toHaveBeenCalledWith("rpc_actualizar_descuentos_operacion", {
+			p_operacion_id: "op-1",
+			p_lineas: lineas,
+		});
+		expect(result.data).toEqual({ id: "op-1", subtotal: 10000, descuento: 2000, monto_total: 8000 });
+		expect(result.error).toBeNull();
+	});
+
+	it("retorna error estandarizado cuando falla la RPC", async () => {
+		const rpc = vi.fn().mockResolvedValue({
+			data: null,
+			error: { code: "22023", message: "descuento invalido" },
+		});
+		const supabase = { rpc } as unknown as SupabaseClient;
+
+		const result = await operacionesService.actualizarDescuentos(supabase, "op-1", [{ id: "l-1", descuento: -500 }]);
+		expect(result.error).toBe(ServiceError.Validation);
 		expect(result.data).toBeNull();
 	});
 });

@@ -22,7 +22,8 @@ async function dadaUnaOperacionDeStock(
   tipo: "VENTA" | "COMPRA",
   cuentaId: string,
   fecha: string,
-  monto: number
+  monto: number,
+  descuento: number = 0
 ): Promise<string> {
   const res = await crearOperacionViaRoute({
     tipo,
@@ -35,6 +36,7 @@ async function dadaUnaOperacionDeStock(
         stock_id: SEED.stockAceite.id,
         cantidad: 1,
         monto_unitario: monto,
+        descuento,
         delta_cantidad: tipo === "VENTA" ? -1 : 1,
       },
     ],
@@ -46,11 +48,11 @@ async function dadaUnaOperacionDeStock(
   return body.data.id as string;
 }
 
-export const dadaUnaVenta = (cuentaId: string, fecha: string, monto: number) =>
-  dadaUnaOperacionDeStock("VENTA", cuentaId, fecha, monto);
+export const dadaUnaVenta = (cuentaId: string, fecha: string, monto: number, descuento: number = 0) =>
+  dadaUnaOperacionDeStock("VENTA", cuentaId, fecha, monto, descuento);
 
-export const dadaUnaCompra = (cuentaId: string, fecha: string, monto: number) =>
-  dadaUnaOperacionDeStock("COMPRA", cuentaId, fecha, monto);
+export const dadaUnaCompra = (cuentaId: string, fecha: string, monto: number, descuento: number = 0) =>
+  dadaUnaOperacionDeStock("COMPRA", cuentaId, fecha, monto, descuento);
 
 /** Devuelve el id de la operación del gasto. */
 export async function dadoUnGasto(cuentaId: string, fecha: string, importe: number): Promise<string> {
@@ -201,6 +203,7 @@ export async function dadoUnDetalleFacturado(
     cantidad?: number;
     horasFacturadas?: number;
     precioHoraFacturada: number;
+    descuento?: number;
   }
 ): Promise<string> {
   const { data, error } = await testClient.from("detalle_arreglo").insert({
@@ -213,6 +216,7 @@ export async function dadoUnDetalleFacturado(
     horas_trabajadas: 1,
     categoria_arreglo_id: options.categoriaId ?? null,
     empleado_id: options.empleadoId ?? null,
+    ...(options.descuento !== undefined ? { descuento: options.descuento } : {}),
   }).select("id").single();
   if (error || !data) throw new Error(`dadoUnDetalleFacturado falló: ${error?.message ?? "sin respuesta"}`);
   return data.id;

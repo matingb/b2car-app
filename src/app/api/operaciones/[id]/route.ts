@@ -46,6 +46,9 @@ function mapLinea(row: OperacionLineaDTO): OperacionLinea {
 				? Number(row.cantidad_cumplida)
 				: undefined,
 		monto_unitario: Number(row.monto_unitario) || 0,
+		subtotal: row.subtotal !== undefined && row.subtotal !== null ? Number(row.subtotal) : undefined,
+		descuento: row.descuento !== undefined && row.descuento !== null ? Number(row.descuento) : undefined,
+		total: row.total !== undefined && row.total !== null ? Number(row.total) : undefined,
 		delta_cantidad: Number(row.delta_cantidad) || 0,
 		iva_alicuota_id: row.iva_alicuota_id !== undefined && row.iva_alicuota_id !== null
 			? Number(row.iva_alicuota_id)
@@ -96,7 +99,7 @@ function mapOperacion(row: OperacionRow): Operacion {
 	const pagos = Array.isArray(row.pagos) && row.pagos.length > 0 ? row.pagos : (Array.isArray(row.operaciones_pagos) ? row.operaciones_pagos : []);
 	const lineasMapped = lineas.map(mapLinea);
 	const lineasTotal = lineasMapped.reduce(
-		(acc, l) => acc + (l.cantidad || 0) * (l.monto_unitario || 0),
+		(acc, l) => acc + (l.total !== undefined ? l.total : (l.cantidad || 0) * (l.monto_unitario || 0)),
 		0
 	);
 	const montoTotal =
@@ -121,6 +124,8 @@ function mapOperacion(row: OperacionRow): Operacion {
 		fecha: row.fecha,
 		created_at: row.created_at,
 		observaciones: row.observaciones ? String(row.observaciones) : undefined,
+		subtotal: row.subtotal !== undefined && row.subtotal !== null ? Number(row.subtotal) : undefined,
+		descuento: row.descuento !== undefined && row.descuento !== null ? Number(row.descuento) : undefined,
 		monto_total: montoTotal,
 		total_pagado: totalPagado,
 		saldo_pendiente: saldoPendiente,
@@ -184,13 +189,30 @@ export async function PUT(
 		return Response.json({ data: null, error: "JSON inválido" } satisfies UpdateOperacionResponse, { status: 400 });
 	}
 
-	const allowedKeys = new Set(["fecha", "observaciones", "cargos"]);
+	const allowedKeys = new Set(["fecha", "observaciones", "cargos", "lineas"]);
 	const extraKeys = Object.keys(payload).filter((k) => !allowedKeys.has(k));
 	if (extraKeys.length > 0) {
 		return Response.json(
 			{ data: null, error: `Claves no permitidas: ${extraKeys.join(", ")}` } satisfies UpdateOperacionResponse,
 			{ status: 400 }
 		);
+	}
+
+	if (payload.lineas !== undefined) {
+		if (!Array.isArray(payload.lineas)) {
+			return Response.json({ data: null, error: "Las líneas deben ser una lista" } satisfies UpdateOperacionResponse, { status: 400 });
+		}
+		const lineasDesc = payload.lineas.map((l: unknown) => {
+			const item = (l ?? {}) as Record<string, unknown>;
+			return {
+				id: String(item.id ?? ""),
+				descuento: Number(item.descuento) || 0,
+			};
+		});
+		const { error: descError } = await operacionesService.actualizarDescuentos(supabase, id, lineasDesc);
+		if (descError) {
+			return Response.json({ data: null, error: "Error actualizando descuentos de la operación" } satisfies UpdateOperacionResponse, { status: 400 });
+		}
 	}
 
 	const updateInput: UpdateOperacionInput = {

@@ -6,6 +6,8 @@ import { BREAKPOINTS, COLOR } from "@/theme/theme";
 import Can from "@/app/components/auth/Can";
 import { Permission } from "@/lib/permissions";
 import NumberInput from "@/app/components/ui/NumberInput";
+import DiscountInput from "@/app/components/ui/DiscountInput";
+import { calcLineSubtotal } from "@/lib/calcLineTotal";
 import { MAX_DETALLE_ARREGLO_DESCRIPCION_LENGTH } from "@/lib/arreglos";
 import type { ServicioEditableCardDraft } from "./ServicioEditableCard";
 
@@ -98,6 +100,21 @@ export default function ServicioEditableFields({
               onValueChange={(val) => onDraftChange({ precioHoraFacturada: String(val) })}
               placeholder="0.00"
               style={styles.fieldNumberInput(canInteract)}
+            />
+          </div>
+
+          <div css={styles.numField("110px")}>
+            <span css={styles.prefixLabel}>Desc</span>
+            <DiscountInput
+              subtotal={calcLineSubtotal({
+                cantidad: draft.cantidad,
+                horas_facturadas: draft.horasFacturadas,
+                precio_hora_facturada: draft.precioHoraFacturada,
+              })}
+              descuento={draft.descuento || 0}
+              onDescuentoChange={(val) => onDraftChange({ descuento: val })}
+              disabled={!canInteract}
+              compact
             />
           </div>
         </Can>

@@ -119,6 +119,8 @@ export interface Arreglo {
   combustible_leido?: number | null;
   fecha: string;
   observaciones: string;
+  subtotal?: number;
+  descuento?: number;
   precio_final: number;
   precio_sin_iva: number;
   precios_incluyen_iva?: boolean;
@@ -147,6 +149,9 @@ export type RepuestoPendiente = {
   nombre?: string | null;
   cantidad: number;
   monto_unitario: number;
+  subtotal?: number;
+  descuento?: number;
+  total?: number;
   precio_compra?: number | null;
   precio_venta?: number | null;
   categoria_arreglo_id?: string | null;
@@ -280,6 +285,9 @@ export interface OperacionLinea {
   cantidad: number;
   cantidad_cumplida?: number;
   monto_unitario: number;
+  subtotal?: number;
+  descuento?: number;
+  total?: number;
   delta_cantidad: number;
   iva_alicuota_id?: number | null;
   created_at: string;
@@ -321,6 +329,8 @@ export interface Operacion {
   categoria_gasto?: string;
   cuenta_financiera_id?: UUID;
   cuenta_financiera_nombre?: string;
+  subtotal?: number;
+  descuento?: number;
   monto?: number;
   monto_total?: number;
   total_pagado?: number;

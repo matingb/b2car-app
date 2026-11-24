@@ -17,6 +17,7 @@ DECLARE
   v_precio_compra numeric;
   v_codigo text;
   v_nombre text;
+  v_descuento numeric;
 BEGIN
   IF p_linea IS NULL OR jsonb_typeof(p_linea) <> 'object' THEN
     RAISE EXCEPTION 'repuesto pendiente invalido' USING ERRCODE = '22023';
@@ -26,8 +27,14 @@ BEGIN
   v_tipo := upper(trim(coalesce(p_linea ->> 'tipo', '')));
   v_cantidad := (p_linea ->> 'cantidad')::integer;
   v_monto := (p_linea ->> 'monto_unitario')::numeric;
+  v_descuento := COALESCE((p_linea ->> 'descuento')::numeric, 0);
+
   IF v_cantidad IS NULL OR v_cantidad <= 0 OR v_monto IS NULL OR v_monto < 0 THEN
     RAISE EXCEPTION 'cantidad o monto de repuesto pendiente invalido' USING ERRCODE = '22023';
+  END IF;
+
+  IF v_descuento < 0 OR v_descuento > (v_cantidad * v_monto) THEN
+    RAISE EXCEPTION 'descuento de repuesto pendiente invalido' USING ERRCODE = '22023';
   END IF;
 
   IF v_tipo = 'EXISTENTE' THEN

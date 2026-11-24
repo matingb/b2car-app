@@ -206,6 +206,13 @@ export default function ArregloWhatsAppModal({
         description: "Importe final presupuestado",
         icon: <DollarSign size={18} />,
       },
+      {
+        key: "mostrarDescuento",
+        title: "Mostrar descuento",
+        description: "Tachar subtotales y mostrar monto con descuento",
+        icon: <Percent size={18} />,
+        disabled: (c) => !(c.mostrarDetalleItems && c.mostrarPreciosItems) && !c.mostrarSubtotales && !c.mostrarTotal,
+      },
     ];
 
     if (data?.arreglo?.precios_incluyen_iva === false) {

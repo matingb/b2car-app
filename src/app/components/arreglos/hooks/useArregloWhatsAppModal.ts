@@ -16,6 +16,7 @@ export interface WhatsAppContentConfig {
   mostrarPreciosItems: boolean;
   mostrarSubtotales: boolean;
   mostrarTotal: boolean;
+  mostrarDescuento: boolean;
   incluirKm: boolean;
   incluirObservaciones: boolean;
   preciosConIva: boolean;
@@ -26,6 +27,7 @@ export const DEFAULT_WHATSAPP_CONFIG: WhatsAppContentConfig = {
   mostrarPreciosItems: false,
   mostrarSubtotales: true,
   mostrarTotal: true,
+  mostrarDescuento: true,
   incluirKm: true,
   incluirObservaciones: true,
   // Solo se ofrece en arreglos con precios sin IVA; ahí arranca discriminando el IVA.
@@ -91,10 +93,15 @@ export function useArregloWhatsAppModal({
     if (!data) return "";
     const tenantName =
       (typeof window !== "undefined" && localStorage.getItem("tenant_name")) || undefined;
+    const anyPricesShown =
+      (config.mostrarDetalleItems && config.mostrarPreciosItems) ||
+      config.mostrarSubtotales ||
+      config.mostrarTotal;
     return buildArregloWhatsappMessage(data, {
       tenantName,
       ...config,
       mostrarPreciosItems: config.mostrarDetalleItems ? config.mostrarPreciosItems : false,
+      mostrarDescuento: anyPricesShown ? config.mostrarDescuento : false,
     });
   }, [data, config]);
 

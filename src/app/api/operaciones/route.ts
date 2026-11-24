@@ -59,6 +59,9 @@ function mapLineaFromUnknown(row: unknown): OperacionLinea | null {
 				? Number(source.cantidad_cumplida)
 				: undefined,
 		monto_unitario: Number(source.monto_unitario) || 0,
+		subtotal: source.subtotal !== undefined && source.subtotal !== null ? Number(source.subtotal) : undefined,
+		descuento: source.descuento !== undefined && source.descuento !== null ? Number(source.descuento) : undefined,
+		total: source.total !== undefined && source.total !== null ? Number(source.total) : undefined,
 		delta_cantidad: Number(source.delta_cantidad) || 0,
 		iva_alicuota_id: source.iva_alicuota_id !== undefined && source.iva_alicuota_id !== null
 			? Number(source.iva_alicuota_id)
@@ -90,6 +93,8 @@ function mapOperacion(row: OperacionRow | OperacionListRow): Operacion {
 		lineas,
 		factura_asociada: "factura_asociada" in row && row.factura_asociada === true,
 		observaciones: row.observaciones ? String(row.observaciones) : undefined,
+		subtotal: row.subtotal !== undefined && row.subtotal !== null ? Number(row.subtotal) : undefined,
+		descuento: row.descuento !== undefined && row.descuento !== null ? Number(row.descuento) : undefined,
 		monto_total: montoTotal,
 		total_pagado: totalPagado,
 		saldo_pendiente: saldoPendiente,

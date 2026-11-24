@@ -8,7 +8,8 @@ CREATE FUNCTION public.rpc_asignar_repuesto_existente_con_compra (
   p_categoria_arreglo_id uuid    DEFAULT NULL::uuid,
   p_empleado_id          uuid    DEFAULT NULL::uuid,
   p_cuenta_id            uuid    DEFAULT NULL::uuid,
-  p_idempotency_key      uuid    DEFAULT NULL::uuid
+  p_idempotency_key      uuid    DEFAULT NULL::uuid,
+  p_descuento            numeric DEFAULT 0
 )
   RETURNS uuid
   LANGUAGE plpgsql
@@ -93,13 +94,14 @@ BEGIN
     p_cantidad := p_cantidad,
     p_monto_unitario := p_monto_unitario,
     p_categoria_arreglo_id := p_categoria_arreglo_id,
-    p_empleado_id := p_empleado_id
+    p_empleado_id := p_empleado_id,
+    p_descuento := p_descuento
   );
 END;
 $function$;
 
-REVOKE ALL ON FUNCTION public.rpc_asignar_repuesto_existente_con_compra(uuid, uuid, uuid, integer, numeric, numeric, uuid, uuid, uuid, uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.rpc_asignar_repuesto_existente_con_compra(uuid, uuid, uuid, integer, numeric, numeric, uuid, uuid, uuid, uuid, numeric) FROM PUBLIC;
 
-GRANT ALL ON FUNCTION public.rpc_asignar_repuesto_existente_con_compra(uuid, uuid, uuid, integer, numeric, numeric, uuid, uuid, uuid, uuid) TO authenticated;
+GRANT ALL ON FUNCTION public.rpc_asignar_repuesto_existente_con_compra(uuid, uuid, uuid, integer, numeric, numeric, uuid, uuid, uuid, uuid, numeric) TO authenticated;
 
-GRANT ALL ON FUNCTION public.rpc_asignar_repuesto_existente_con_compra(uuid, uuid, uuid, integer, numeric, numeric, uuid, uuid, uuid, uuid) TO service_role;
+GRANT ALL ON FUNCTION public.rpc_asignar_repuesto_existente_con_compra(uuid, uuid, uuid, integer, numeric, numeric, uuid, uuid, uuid, uuid, numeric) TO service_role;

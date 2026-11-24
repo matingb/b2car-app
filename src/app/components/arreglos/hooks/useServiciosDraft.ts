@@ -12,6 +12,7 @@ type AddInput = {
   valorHoraEmpleado?: number | null;
   categoriaArregloId: string | null;
   empleadoId: string | null;
+  descuento?: number;
 };
 type UpdatePatch = AddInput;
 

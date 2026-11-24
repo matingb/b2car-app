@@ -117,7 +117,7 @@ describe("statsService.getStats", () => {
     });
     expect(mocks.unstableCache).toHaveBeenCalledWith(
       expect.any(Function),
-      ["dashboard-stats", "v6", from, to, "tenant-1"],
+      ["dashboard-stats", "v7", from, to, "tenant-1"],
       { revalidate: 3600, tags: ["dashboard-stats:tenant:tenant-1"] }
     );
   });

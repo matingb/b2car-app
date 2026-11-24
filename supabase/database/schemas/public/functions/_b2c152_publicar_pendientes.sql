@@ -13,6 +13,7 @@ CREATE FUNCTION public._b2c152_publicar_pendientes (
       'codigo', x ->> 'codigo', 'nombre', x ->> 'nombre',
       'precio_compra', x ->> 'precio_compra', 'precio_venta', x ->> 'precio_venta',
       'monto_unitario', x ->> 'monto_unitario', 'cantidad', x ->> 'cantidad',
+      'subtotal', x ->> 'subtotal', 'descuento', x ->> 'descuento', 'total', x ->> 'total',
       'categoria_arreglo_id', x ->> 'categoria_arreglo_id', 'empleado_id', x ->> 'empleado_id'
     )) ORDER BY (x ->> 'id')
   ), '[]'::jsonb) END

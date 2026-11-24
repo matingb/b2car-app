@@ -34,6 +34,7 @@ export function useRepuestosDraft() {
             stock_id: NEW_PRODUCT_VALUE,
             cantidad: input.cantidad,
             monto_unitario: input.precio_venta,
+            ...(input.descuento !== undefined ? { descuento: input.descuento } : {}),
             producto: { nombre: input.nombre, codigo: input.codigo },
             nuevoProducto: {
               codigo: input.codigo,
@@ -60,6 +61,7 @@ export function useRepuestosDraft() {
             cantidad: input.cantidad,
             monto_unitario: input.monto_unitario,
             precioCompra: input.precio_compra,
+            ...(input.descuento !== undefined ? { descuento: input.descuento } : {}),
             categoriaArregloId: input.categoria_arreglo_id ?? null,
             empleadoId: input.empleado_id ?? null,
           };
@@ -73,6 +75,7 @@ export function useRepuestosDraft() {
             cantidad: input.cantidad,
             monto_unitario: input.monto_unitario,
             precioCompra: input.precio_compra,
+            ...(input.descuento !== undefined ? { descuento: input.descuento } : {}),
             producto: null,
             categoriaArregloId: input.categoria_arreglo_id ?? null,
             empleadoId: input.empleado_id ?? null,

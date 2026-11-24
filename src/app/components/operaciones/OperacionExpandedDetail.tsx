@@ -56,7 +56,9 @@ export default function OperacionExpandedDetail({
         const productName =
           linea.nombre || stockInfo?.nombre || shortId(linea.stock_id);
         const productCode = linea.codigo || stockInfo?.codigo;
-        const total = (linea.cantidad || 0) * (linea.monto_unitario || 0);
+        const subtotal = linea.subtotal ?? ((linea.cantidad || 0) * (linea.monto_unitario || 0));
+        const descuento = linea.descuento ?? 0;
+        const total = linea.total ?? Math.max(0, subtotal - descuento);
 
         const tieneEntregaParcial =
           operacion.estado_stock !== "ENTREGADO" &&
@@ -84,11 +86,34 @@ export default function OperacionExpandedDetail({
               <div style={styles.expandedUnit}>
                 {formatArs(linea.monto_unitario)}
               </div>
-              <div style={styles.expandedTotal}>{formatArs(total)}</div>
+              <div style={{ textAlign: "right" }}>
+                <div style={styles.expandedTotal}>{formatArs(total)}</div>
+                {descuento > 0 && (
+                  <div style={{ fontSize: 11, color: COLOR.TEXT.SECONDARY, marginTop: 2 }}>
+                    <span style={{ textDecoration: "line-through", marginRight: 4 }}>
+                      {formatArs(subtotal)}
+                    </span>
+                    <span style={{ color: COLOR.STATUS.WARNING.TEXT, fontWeight: 600 }}>
+                      -{formatArs(descuento)}
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         );
       })}
+
+      {operacion.descuento != null && operacion.descuento > 0 && (
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, padding: "8px 12px", fontSize: 12, borderTop: `1px dashed ${COLOR.BORDER.SUBTLE}` }}>
+          <span style={{ color: COLOR.TEXT.SECONDARY }}>
+            Subtotal: <strong>{formatArs(operacion.subtotal ?? 0)}</strong>
+          </span>
+          <span style={{ color: COLOR.STATUS.WARNING.TEXT }}>
+            Descuento: <strong>-{formatArs(operacion.descuento)}</strong>
+          </span>
+        </div>
+      )}
 
       {hasObservaciones && (
         <div style={styles.observacionesSection} data-testid="operacion-expanded-observaciones">

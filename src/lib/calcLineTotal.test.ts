@@ -78,4 +78,31 @@ describe("calcLineTotal", () => {
   it("trata cero como horas explícitas", () => {
     expect(calcLineTotal({ cantidad: 5, horas_facturadas: 0, precio_hora_facturada: 5000 })).toBe(0);
   });
+
+  it("aplica descuento al total de la línea", () => {
+    expect(
+      calcLineTotal({
+        cantidad: 2,
+        horas_facturadas: 1,
+        precio_hora_facturada: 10000,
+        descuento: 3000,
+      })
+    ).toBe(17000);
+
+    expect(
+      calcLineTotal({
+        cantidad: 1,
+        precio_hora_facturada: 5000,
+        descuento: 2000,
+      })
+    ).toBe(3000);
+
+    expect(
+      calcLineTotal({
+        cantidad: 1,
+        precio_hora_facturada: 5000,
+        descuento: 8000,
+      })
+    ).toBe(0);
+  });
 });

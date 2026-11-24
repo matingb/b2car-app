@@ -32,6 +32,9 @@ export type ServicioLinea = {
   valorHoraEmpleado: number | null;
   categoriaArregloId: string | null;
   empleadoId: string | null;
+  subtotal?: number;
+  descuento?: number;
+  total?: number;
 };
 
 export type ServicioLineaValue = {
@@ -43,6 +46,7 @@ export type ServicioLineaValue = {
   valorHoraEmpleado?: number | null;
   categoriaArregloId: string | null;
   empleadoId: string | null;
+  descuento?: number;
 };
 
 type Draft = ServicioEditableCardDraft;
@@ -109,6 +113,7 @@ export default function ServicioLineasEditableSection({
       horasFacturadas: 1,
       horasTrabajadas: 1,
       precioHoraFacturada: defaultValorHora,
+      descuento: 0,
       valorHoraEmpleado: "",
       categoriaArregloId: defaultCategoriaArregloId,
       empleadoId: defaultEmpleadoId,
@@ -119,6 +124,7 @@ export default function ServicioLineasEditableSection({
       horasFacturadas: item.horasFacturadas ?? 1,
       horasTrabajadas: item.horasTrabajadas ?? 1,
       precioHoraFacturada: String(item.precioHoraFacturada ?? 0),
+      descuento: item.descuento ?? 0,
       valorHoraEmpleado: item.valorHoraEmpleado == null ? "" : String(item.valorHoraEmpleado),
       categoriaArregloId: item.categoriaArregloId ?? null,
       empleadoId: item.empleadoId ?? null,
@@ -137,6 +143,7 @@ export default function ServicioLineasEditableSection({
         : safeNumber(d.valorHoraEmpleado);
       const oldValorHoraEmpleado = ctx.item?.valorHoraEmpleado ?? null;
       const shouldUpdateEmployeeRate = ctx.mode === "add" || valorHoraEmpleado !== oldValorHoraEmpleado;
+      const descuento = safeNumber(d.descuento) || 0;
 
       if (!descripcion) return { ok: false as const, message: "Falta descripción" };
       if (
@@ -161,6 +168,7 @@ export default function ServicioLineasEditableSection({
           horasFacturadas,
           horasTrabajadas,
           precioHoraFacturada,
+          ...(descuento > 0 ? { descuento } : {}),
           ...(shouldUpdateEmployeeRate ? { valorHoraEmpleado } : {}),
           categoriaArregloId: d.categoriaArregloId,
           empleadoId: d.empleadoId,
@@ -181,6 +189,7 @@ export default function ServicioLineasEditableSection({
             cantidad: i.cantidad,
             horas_facturadas: i.horasFacturadas,
             precio_hora_facturada: i.precioHoraFacturada,
+            descuento: i.descuento || 0,
           }),
         0
       ),
@@ -202,6 +211,7 @@ export default function ServicioLineasEditableSection({
       cantidad: draft.cantidad,
       horas_facturadas: draft.horasFacturadas,
       precio_hora_facturada: draft.precioHoraFacturada,
+      descuento: draft.descuento || 0,
     });
 
     const effectiveLaborRate = draft.valorHoraEmpleado.trim() === ""
@@ -296,6 +306,8 @@ export default function ServicioLineasEditableSection({
         horasFacturadas={item.horasFacturadas}
         horasTrabajadas={item.horasTrabajadas}
         valorHoraEmpleado={item.valorHoraEmpleado}
+        subtotal={item.subtotal}
+        descuento={item.descuento}
         onEdit={() => startEdit(item)}
         onDelete={() => onDelete(item.id)}
         canInteract={canInteract && !isEditing}

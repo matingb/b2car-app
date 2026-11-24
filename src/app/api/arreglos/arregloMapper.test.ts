@@ -137,6 +137,48 @@ describe("arregloMapper", () => {
       expect(result.cobros).toHaveLength(1);
     });
 
+    it("mapea subtotal, descuento y total correctamente", () => {
+      const dataConDescuentos: ArregloDetalleData = {
+        ...mockDetalleData,
+        arreglo: mapArreglo({
+          ...baseRawArreglo,
+          subtotal: 15000,
+          descuento: 3000,
+        }),
+        detalles: [
+          {
+            ...mockDetalleData.detalles[0],
+            subtotal: 4000,
+            descuento: 1000,
+            total: 3000,
+          },
+        ],
+        asignaciones: [
+          {
+            ...mockDetalleData.asignaciones[0],
+            lineas: [
+              {
+                ...mockDetalleData.asignaciones[0].lineas[0],
+                subtotal: 8000,
+                descuento: 2000,
+                total: 6000,
+              },
+            ],
+          },
+        ],
+      };
+
+      const result = mapArregloDetalleCompleto(dataConDescuentos, { hidePrices: false });
+      expect(result.arreglo.subtotal).toBe(15000);
+      expect(result.arreglo.descuento).toBe(3000);
+      expect(result.detalles[0].subtotal).toBe(4000);
+      expect(result.detalles[0].descuento).toBe(1000);
+      expect(result.detalles[0].total).toBe(3000);
+      expect(result.asignaciones[0].lineas[0].subtotal).toBe(8000);
+      expect(result.asignaciones[0].lineas[0].descuento).toBe(2000);
+      expect(result.asignaciones[0].lineas[0].total).toBe(6000);
+    });
+
     it("redacta todos los precios, costos y cobros a cero/vacío cuando hidePrices es true", () => {
       const result = mapArregloDetalleCompleto(mockDetalleData, { hidePrices: true });
 

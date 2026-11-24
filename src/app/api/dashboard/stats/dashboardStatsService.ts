@@ -9,7 +9,7 @@ import { revalidateTag, unstable_cache } from "next/cache";
 
 const DASHBOARD_STATS_TAG_PREFIX = "dashboard-stats";
 // Cambiarla cuando cambia el contenido o la semántica calculada: evita servir entradas cacheadas por la versión anterior.
-const DASHBOARD_STATS_CACHE_VERSION = "v6";
+const DASHBOARD_STATS_CACHE_VERSION = "v7";
 
 function dashboardStatsTag(tenantId: string) {
   const normalized = String(tenantId).trim();
