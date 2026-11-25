@@ -24,8 +24,11 @@ import ServicioLineasEditableSection from "@/app/components/arreglos/lineas/serv
 import ServicioLineasCustomSection, {
   parseCustomServicioLineDefs,
 } from "@/app/components/arreglos/lineas/servicios/ServicioLineasCustomSection";
-import RepuestoLineasEditableSection from "@/app/components/arreglos/lineas/repuestos/RepuestoLineasEditableSection";
-import type { RepuestoUpsertInput } from "@/app/components/arreglos/lineas/repuestos/RepuestoLineasEditableSection";
+import RepuestoLineasEditableSection, {
+  calculateRepuestosSubtotal,
+  type RepuestoLinea,
+  type RepuestoUpsertInput,
+} from "@/app/components/arreglos/lineas/repuestos/RepuestoLineasEditableSection";
 import { useFormularios } from "@/app/providers/FormulariosProvider";
 import type { ServicioLinea } from "@/app/components/arreglos/lineas/servicios/ServicioLineasEditableSection";
 import { useInventario } from "@/app/providers/InventarioProvider";
@@ -196,6 +199,7 @@ export default function ArregloDetailsPage() {
     valorHoraEmpleado?: number | null;
     categoriaArregloId: string | null;
     empleadoId: string | null;
+    descuento?: number;
   }) => {
     if (!data?.arreglo?.id) return;
     try {
@@ -208,6 +212,7 @@ export default function ArregloDetailsPage() {
         ...(canEditEmployeeCosts ? { valor_hora_empleado: input.valorHoraEmpleado } : {}),
         categoria_arreglo_id: input.categoriaArregloId,
         empleado_id: input.empleadoId,
+        ...(canEditPrices && input.descuento !== undefined ? { descuento: input.descuento } : {}),
       });
       registrarUltimoUsado(input.categoriaArregloId, input.empleadoId);
       success("Servicio agregado", "La mano de obra se agregó correctamente.");
@@ -233,6 +238,7 @@ export default function ArregloDetailsPage() {
       valorHoraEmpleado?: number | null;
       categoriaArregloId: string | null;
       empleadoId: string | null;
+      descuento?: number;
     }
   ) => {
     if (!data?.arreglo?.id) return;
@@ -246,6 +252,7 @@ export default function ArregloDetailsPage() {
         ...(canEditEmployeeCosts ? { valor_hora_empleado: patch.valorHoraEmpleado } : {}),
         categoria_arreglo_id: patch.categoriaArregloId,
         empleado_id: patch.empleadoId,
+        ...(canEditPrices && patch.descuento !== undefined ? { descuento: patch.descuento } : {}),
       });
       registrarUltimoUsado(patch.categoriaArregloId, patch.empleadoId);
       success("Servicio actualizado", "El servicio se actualizó correctamente.");
@@ -391,6 +398,9 @@ export default function ArregloDetailsPage() {
         stock_id: linea.stock_id ?? "",
         cantidad: linea.cantidad,
         monto_unitario: linea.monto_unitario,
+        subtotal: linea.subtotal != null ? safeNumber(linea.subtotal) : undefined,
+        descuento: linea.descuento != null ? safeNumber(linea.descuento) : undefined,
+        total: linea.total != null ? safeNumber(linea.total) : undefined,
         precioCompra: linea.precio_compra == null ? undefined : Number(linea.precio_compra),
         tipo: linea.tipo === "NUEVO" ? "nuevo" as const : "existente" as const,
         nuevoProducto: linea.tipo === "NUEVO"
@@ -414,6 +424,7 @@ export default function ArregloDetailsPage() {
         cantidad: d.cantidad,
         horas_facturadas: d.horas_facturadas,
         precio_hora_facturada: d.precio_hora_facturada,
+        descuento: d.descuento || 0,
       }),
     0
   );
@@ -430,10 +441,21 @@ export default function ArregloDetailsPage() {
         0
       )
       : safeNumber(data.detalle_formulario?.costo);
-  const subtotalRepuestos = repuestosLineas.reduce(
-    (acc, l) => acc + safeNumber(l.monto_unitario) * safeNumber(l.cantidad),
-    0
-  );
+  const repuestosItems: RepuestoLinea[] = repuestosLineas.map((l) => ({
+    id: l.id,
+    stock_id: l.stock_id,
+    cantidad: safeNumber(l.cantidad),
+    monto_unitario: safeNumber(l.monto_unitario),
+    subtotal: l.subtotal != null ? safeNumber(l.subtotal) : undefined,
+    descuento: l.descuento != null ? safeNumber(l.descuento) : undefined,
+    total: l.total != null ? safeNumber(l.total) : undefined,
+    tipo: "tipo" in l ? l.tipo : undefined,
+    nuevoProducto: "nuevoProducto" in l ? l.nuevoProducto : undefined,
+    producto: l.producto ? { nombre: l.producto.nombre, codigo: l.producto.codigo } : null,
+    categoriaArregloId: l.categoria_arreglo_id ?? null,
+    empleadoId: l.empleado_id ?? null,
+  }));
+  const subtotalRepuestos = calculateRepuestosSubtotal(repuestosItems);
   const totalCalculado = Number(arreglo.precio_final ?? 0);
 
   const handleConfirmCustomEdit = async ({
@@ -542,6 +564,9 @@ export default function ArregloDetailsPage() {
             valorHoraEmpleado: d.valor_hora_empleado ?? null,
             categoriaArregloId: d.categoria_arreglo_id ?? null,
             empleadoId: d.empleado_id ?? null,
+            subtotal: d.subtotal != null ? safeNumber(d.subtotal) : undefined,
+            descuento: d.descuento != null ? safeNumber(d.descuento) : undefined,
+            total: d.total != null ? safeNumber(d.total) : undefined,
           }))}
           tallerId={arreglo.taller_id ?? null}
           defaultCategoriaArregloId={ultimoUsado.categoriaArregloId}
@@ -562,17 +587,7 @@ export default function ArregloDetailsPage() {
 
         <RepuestoLineasEditableSection
           tallerId={arreglo.taller_id ?? null}
-          items={repuestosLineas.map((l) => ({
-            id: l.id,
-            stock_id: l.stock_id,
-            cantidad: safeNumber(l.cantidad),
-            monto_unitario: safeNumber(l.monto_unitario),
-            tipo: "tipo" in l ? l.tipo : undefined,
-            nuevoProducto: "nuevoProducto" in l ? l.nuevoProducto : undefined,
-            producto: l.producto ? { nombre: l.producto.nombre, codigo: l.producto.codigo } : null,
-            categoriaArregloId: l.categoria_arreglo_id ?? null,
-            empleadoId: l.empleado_id ?? null,
-          }))}
+          items={repuestosItems}
           defaultCategoriaArregloId={ultimoUsado.categoriaArregloId}
           defaultEmpleadoId={ultimoUsado.empleadoId}
           onUpsert={handleUpsertRepuesto}

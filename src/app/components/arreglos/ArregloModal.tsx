@@ -117,6 +117,8 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
     detalleFormulario: null,
     subtotalServicios: 0,
     subtotalRepuestos: 0,
+    subtotal: 0,
+    descuento: 0,
     totalCalculado: 0,
     totalCalculadoLabel: "0",
   });
@@ -326,6 +328,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
           horas_facturadas: Number(s.horasFacturadas),
           horas_trabajadas: Number(s.horasTrabajadas),
           ...(canEditEmployeeCosts ? { valor_hora_empleado: s.valorHoraEmpleado } : {}),
+          descuento: Number(s.descuento) || 0,
           categoria_arreglo_id: s.categoriaArregloId || null,
           empleado_id: s.empleadoId || null,
         }));
@@ -355,6 +358,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
               stock_id: String(r.stock_id ?? "").trim(),
               cantidad: Number(r.cantidad) || 0,
               monto_unitario: Number(r.monto_unitario) || 0,
+              descuento: Number(r.descuento) || 0,
               precio_compra: r.precioCompra,
               categoria_arreglo_id: r.categoriaArregloId || null,
               empleado_id: r.empleadoId || null,
@@ -367,6 +371,7 @@ export default function ArregloModal({ open, onClose, vehiculoId, initial, onSub
               precio_compra: Number(r.nuevoProducto?.precioCompra) || 0,
               precio_venta: Number(r.nuevoProducto?.precioVenta) || 0,
               cantidad: Number(r.cantidad) || 0,
+              descuento: Number(r.descuento) || 0,
               categoria_arreglo_id: r.categoriaArregloId || null,
               empleado_id: r.empleadoId || null,
             })),

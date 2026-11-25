@@ -184,9 +184,11 @@ export async function POST(req: Request) {
             horas_facturadas?: unknown;
             horas_trabajadas?: unknown;
             valor_hora_empleado?: unknown;
+            descuento?: unknown;
             categoria_arreglo_id?: unknown;
             empleado_id?: unknown;
         };
+        const desc = item.descuento != null ? Number(item.descuento) : 0;
         return {
             descripcion: String(item.descripcion ?? "").trim(),
             cantidad: Number(item.cantidad),
@@ -194,6 +196,7 @@ export async function POST(req: Request) {
             horas_facturadas: item.horas_facturadas != null ? Number(item.horas_facturadas) : 1,
             horas_trabajadas: item.horas_trabajadas != null ? Number(item.horas_trabajadas) : 1,
             valor_hora_empleado: item.valor_hora_empleado == null ? null : Number(item.valor_hora_empleado),
+            ...(desc > 0 ? { descuento: desc } : {}),
             categoria_arreglo_id: (item.categoria_arreglo_id as string) || null,
             empleado_id: (item.empleado_id as string) || null,
         };
@@ -308,27 +311,35 @@ export async function POST(req: Request) {
 
     // Opcional: crear líneas (servicios + repuestos) en el mismo POST.
     // Esto se usa principalmente desde el ArregloModal (crear).
-    const normalizedRepuestos = repuestosArr.map((r) => ({
-        stock_id: String((r as { stock_id?: unknown }).stock_id ?? "").trim(),
-        cantidad: Number((r as { cantidad?: unknown }).cantidad),
-        monto_unitario: Number((r as { monto_unitario?: unknown }).monto_unitario),
-        precio_compra:
-            (r as { precio_compra?: unknown }).precio_compra == null
-                ? null
-                : Number((r as { precio_compra?: unknown }).precio_compra),
-        categoria_arreglo_id: (r as { categoria_arreglo_id?: unknown }).categoria_arreglo_id || null,
-        empleado_id: (r as { empleado_id?: unknown }).empleado_id || null,
-    }));
+    const normalizedRepuestos = repuestosArr.map((r) => {
+        const desc = (r as { descuento?: unknown }).descuento != null ? Number((r as { descuento?: unknown }).descuento) : 0;
+        return {
+            stock_id: String((r as { stock_id?: unknown }).stock_id ?? "").trim(),
+            cantidad: Number((r as { cantidad?: unknown }).cantidad),
+            monto_unitario: Number((r as { monto_unitario?: unknown }).monto_unitario),
+            ...(desc > 0 ? { descuento: desc } : {}),
+            precio_compra:
+                (r as { precio_compra?: unknown }).precio_compra == null
+                    ? null
+                    : Number((r as { precio_compra?: unknown }).precio_compra),
+            categoria_arreglo_id: (r as { categoria_arreglo_id?: unknown }).categoria_arreglo_id || null,
+            empleado_id: (r as { empleado_id?: unknown }).empleado_id || null,
+        };
+    });
 
-    const normalizedRepuestosNuevos = repuestosNuevosArr.map((r) => ({
-        codigo: String((r as { codigo?: unknown }).codigo ?? "").trim(),
-        nombre: String((r as { nombre?: unknown }).nombre ?? "").trim(),
-        precio_compra: Number((r as { precio_compra?: unknown }).precio_compra),
-        precio_venta: Number((r as { precio_venta?: unknown }).precio_venta),
-        cantidad: Number((r as { cantidad?: unknown }).cantidad),
-        categoria_arreglo_id: (r as { categoria_arreglo_id?: unknown }).categoria_arreglo_id || null,
-        empleado_id: (r as { empleado_id?: unknown }).empleado_id || null,
-    }));
+    const normalizedRepuestosNuevos = repuestosNuevosArr.map((r) => {
+        const desc = (r as { descuento?: unknown }).descuento != null ? Number((r as { descuento?: unknown }).descuento) : 0;
+        return {
+            codigo: String((r as { codigo?: unknown }).codigo ?? "").trim(),
+            nombre: String((r as { nombre?: unknown }).nombre ?? "").trim(),
+            precio_compra: Number((r as { precio_compra?: unknown }).precio_compra),
+            precio_venta: Number((r as { precio_venta?: unknown }).precio_venta),
+            cantidad: Number((r as { cantidad?: unknown }).cantidad),
+            ...(desc > 0 ? { descuento: desc } : {}),
+            categoria_arreglo_id: (r as { categoria_arreglo_id?: unknown }).categoria_arreglo_id || null,
+            empleado_id: (r as { empleado_id?: unknown }).empleado_id || null,
+        };
+    });
 
     for (const r of normalizedRepuestos) {
         if (!r.stock_id) return Response.json({ error: "Falta stock_id en repuestos" }, { status: 400 });

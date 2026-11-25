@@ -10,7 +10,7 @@ import { BREAKPOINTS, COLOR, REQUIRED_ICON_COLOR } from "@/theme/theme";
 import { css } from "@emotion/react";
 import { formatCalendarDateLabel, isValidDate } from "@/lib/fechas";
 import { formatArs } from "@/lib/format";
-import { calcLineTotal } from "@/lib/calcLineTotal";
+import { calcLineTotal, calcLineSubtotal } from "@/lib/calcLineTotal";
 import { importeComercial } from "@/lib/ivaComercial";
 import { IVA_RATE } from "@/lib/ivaRate";
 import Toggle from "@/app/components/ui/Toggle";
@@ -67,6 +67,8 @@ export type ArregloFormFieldsInternal = {
   detalleFormulario: CreateArregloDetalleFormularioInput | null;
   subtotalServicios: number;
   subtotalRepuestos: number;
+  subtotal?: number;
+  descuento?: number;
   totalCalculado: number;
   totalCalculadoLabel: string;
 };
@@ -194,13 +196,14 @@ export default function ArregloFormFields({
 
   const preciosIncluyenIva = values.preciosIncluyenIva !== false;
   const showFacturableSwitch = showFacturable && values.estado !== "PRESUPUESTO";
-  const subtotalServicios = useMemo(
+
+  const subtotalServiciosBruto = useMemo(
     () =>
       serviciosActivos.reduce(
         (acc, s) =>
           acc +
           importeComercial(
-            calcLineTotal({
+            calcLineSubtotal({
               cantidad: s.cantidad,
               horas_facturadas: s.horasFacturadas,
               precio_hora_facturada: s.precioHoraFacturada,
@@ -212,13 +215,60 @@ export default function ArregloFormFields({
       ),
     [serviciosActivos, preciosIncluyenIva]
   );
+
+  const subtotalServicios = useMemo(
+    () =>
+      serviciosActivos.reduce(
+        (acc, s) =>
+          acc +
+          importeComercial(
+            calcLineTotal({
+              cantidad: s.cantidad,
+              horas_facturadas: s.horasFacturadas,
+              precio_hora_facturada: s.precioHoraFacturada,
+              descuento: s.descuento || 0,
+            }),
+            preciosIncluyenIva,
+            IVA_RATE,
+          ),
+        0
+      ),
+    [serviciosActivos, preciosIncluyenIva]
+  );
+
+  const subtotalRepuestosBruto = useMemo(
+    () =>
+      repuestosDraft.reduce(
+        (acc, r) =>
+          acc +
+          importeComercial(
+            calcLineSubtotal({
+              cantidad: r.cantidad,
+              horas_facturadas: null,
+              precio_hora_facturada: r.monto_unitario,
+            }),
+            preciosIncluyenIva,
+            IVA_RATE,
+          ),
+        0
+      ),
+    [repuestosDraft, preciosIncluyenIva]
+  );
+
   const subtotalRepuestos = useMemo(
     () =>
       repuestosDraft.reduce(
         (acc, r) =>
           acc +
           importeComercial(
-            (Number(r.cantidad) || 0) * (Number(r.monto_unitario) || 0),
+            r.total != null
+              ? r.total
+              : calcLineTotal({
+                  cantidad: r.cantidad,
+                  horas_facturadas: null,
+                  precio_hora_facturada: r.monto_unitario,
+                  descuento: r.descuento || 0,
+                }),
             preciosIncluyenIva,
             IVA_RATE,
           ),
@@ -226,7 +276,19 @@ export default function ArregloFormFields({
       ),
     [repuestosDraft, preciosIncluyenIva],
   );
+
+  const subtotalBruto = subtotalServiciosBruto + subtotalRepuestosBruto;
   const totalCalculado = subtotalServicios + subtotalRepuestos;
+  const descuentoTotal = Math.max(0, subtotalBruto - totalCalculado);
+
+  const subtotalBrutoLabel = useMemo(
+    () => formatArs(subtotalBruto, { maxDecimals: 2, minDecimals: 0 }),
+    [subtotalBruto]
+  );
+  const descuentoTotalLabel = useMemo(
+    () => formatArs(descuentoTotal, { maxDecimals: 2, minDecimals: 0 }),
+    [descuentoTotal]
+  );
   const totalCalculadoLabel = useMemo(
     () => formatArs(totalCalculado, { maxDecimals: 2, minDecimals: 0 }),
     [totalCalculado],
@@ -239,10 +301,21 @@ export default function ArregloFormFields({
       detalleFormulario: null,
       subtotalServicios,
       subtotalRepuestos,
+      subtotal: subtotalBruto,
+      descuento: descuentoTotal,
       totalCalculado,
       totalCalculadoLabel,
     }),
-    [serviciosDraft, repuestosDraft, subtotalServicios, subtotalRepuestos, totalCalculado, totalCalculadoLabel],
+    [
+      serviciosDraft,
+      repuestosDraft,
+      subtotalServicios,
+      subtotalRepuestos,
+      subtotalBruto,
+      descuentoTotal,
+      totalCalculado,
+      totalCalculadoLabel,
+    ],
   );
 
   useEffect(() => {
@@ -405,11 +478,23 @@ export default function ArregloFormFields({
           />
 
           <Can permission={Permission.ArreglosPreciosView}>
-            <div style={stylesModal.totalRow}>
-              <span style={stylesModal.totalLabel}>
-                {preciosIncluyenIva ? "Total calculado" : "Total calculado (IVA incluido)"}
-              </span>
-              <span style={stylesModal.totalValue}>{totalCalculadoLabel}</span>
+            <div style={stylesModal.totalContainer}>
+              {descuentoTotal > 0 && (
+                <div style={stylesModal.discountBreakdown}>
+                  <span style={stylesModal.subtotalLabel}>
+                    Subtotal: {subtotalBrutoLabel}
+                  </span>
+                  <span style={stylesModal.descuentoLabel}>
+                    Descuento: -{descuentoTotalLabel}
+                  </span>
+                </div>
+              )}
+              <div style={stylesModal.totalRow}>
+                <span style={stylesModal.totalLabel}>
+                  {preciosIncluyenIva ? "Total calculado" : "Total calculado (IVA incluido)"}
+                </span>
+                <span style={stylesModal.totalValue}>{totalCalculadoLabel}</span>
+              </div>
             </div>
           </Can>
         </div>
@@ -590,8 +675,28 @@ const styles = {
 } as const;
 
 const stylesModal = {
-  totalRow: {
+  totalContainer: {
     marginTop: 12,
+    display: "flex",
+    flexDirection: "column" as const,
+    alignItems: "flex-end",
+    gap: 4,
+  },
+  discountBreakdown: {
+    fontSize: 13,
+    display: "flex",
+    flexDirection: "column" as const,
+    alignItems: "flex-end",
+    gap: 2,
+  },
+  subtotalLabel: {
+    color: COLOR.TEXT.SECONDARY,
+  },
+  descuentoLabel: {
+    color: COLOR.STATUS.WARNING.TEXT,
+    fontWeight: 600,
+  },
+  totalRow: {
     display: "flex",
     justifyContent: "flex-end",
     alignItems: "baseline",

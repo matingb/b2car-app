@@ -275,4 +275,59 @@ describe("ArregloFormFields selector de estado", () => {
       );
     });
   });
+
+  describe("cálculo de total con descuentos", () => {
+    it("actualiza el total calculado y muestra el desglose cuando se agrega un servicio con descuento", async () => {
+      const onChange = vi.fn();
+      render(
+        <TenantTestProvider hasPermission={mockHasPermission(UserRole.Admin)}>
+          <ArregloFormFields
+            vehiculoId="veh-1"
+            vehiculoOptions={[]}
+            isEdit={false}
+            showFacturable={true}
+            submitting={false}
+            tallerId="taller-1"
+            values={baseValues}
+            onValuesChange={vi.fn()}
+            onChange={onChange}
+          />
+        </TenantTestProvider>
+      );
+
+      // Abrir editor para agregar servicio
+      const addServiceBtn = screen.getByRole("button", { name: /agregar mano de obra/i });
+      fireEvent.click(addServiceBtn);
+
+      // Completar campos del servicio
+      const descInput = screen.getByLabelText("Descripción");
+      fireEvent.change(descInput, { target: { value: "Cambio de pastillas" } });
+
+      const priceInput = screen.getByLabelText("Precio venta");
+      fireEvent.change(priceInput, { target: { value: "10000" } });
+
+      const descMontoInput = screen.getByLabelText("Descuento");
+      fireEvent.change(descMontoInput, { target: { value: "2000" } });
+
+      // Confirmar agregar servicio
+      const confirmBtn = screen.getByRole("button", { name: "agregar servicio" });
+      fireEvent.click(confirmBtn);
+
+      // Debe mostrar subtotal $10.000, descuento -$2.000 y total calculado $8.000 (tanto en la línea como en el total del modal)
+      expect(screen.getByText(/Subtotal:\s*\$10\.000/)).toBeInTheDocument();
+      expect(screen.getByText(/Descuento:\s*-\$2\.000/)).toBeInTheDocument();
+      expect(screen.getAllByText("$8.000").length).toBeGreaterThanOrEqual(2);
+
+      // Debe notificar al snapshot con el total con descuento
+      expect(onChange).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          subtotalServicios: 8000,
+          subtotal: 10000,
+          descuento: 2000,
+          totalCalculado: 8000,
+          totalCalculadoLabel: "$8.000",
+        })
+      );
+    });
+  });
 });

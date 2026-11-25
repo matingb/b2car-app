@@ -83,4 +83,31 @@ describe("POST /api/arreglos/[id]/detalles", () => {
     expect(response.status).toBe(403);
     expect(detalleArregloService.create).not.toHaveBeenCalled();
   });
+
+  it("permite crear un servicio con descuento", async () => {
+    const response = await POST(request({
+      descripcion: "Diagnóstico",
+      cantidad: 1,
+      descuento: 2000,
+    }), { params: Promise.resolve({ id: "ARR-1" }) });
+
+    expect(response.status).toBe(201);
+    expect(detalleArregloService.create).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        descuento: 2000,
+      }),
+    );
+  });
+
+  it("rechaza un servicio con descuento negativo", async () => {
+    const response = await POST(request({
+      descripcion: "Diagnóstico",
+      cantidad: 1,
+      descuento: -500,
+    }), { params: Promise.resolve({ id: "ARR-1" }) });
+
+    expect(response.status).toBe(400);
+    expect(detalleArregloService.create).not.toHaveBeenCalled();
+  });
 });

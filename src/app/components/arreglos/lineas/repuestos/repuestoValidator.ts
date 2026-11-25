@@ -223,7 +223,7 @@ function validateNewProduct(
   const descResult = parseAndValidateDescuento(draft.descuento, subtotal);
   if (!descResult.ok) return descResult;
   const descuento = descResult.descuento;
-  const includeDescuento = descuento > 0 || (ctx.mode === "edit" && String(draft.descuento ?? "").trim() !== "");
+  const includeDescuento = descuento > 0 || ctx.mode === "edit";
 
   return {
     ok: true,
@@ -269,7 +269,7 @@ function validateExistingStock(
   const descResult = parseAndValidateDescuento(draft.descuento, subtotal);
   if (!descResult.ok) return descResult;
   const descuento = descResult.descuento;
-  const includeDescuento = descuento > 0 || (ctx.mode === "edit" && String(draft.descuento ?? "").trim() !== "");
+  const includeDescuento = descuento > 0 || ctx.mode === "edit";
 
   if (faltante > 0) {
     const rawPrecioCompra = draft.precioCompra;

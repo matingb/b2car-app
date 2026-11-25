@@ -39,6 +39,7 @@ export type CreateArregloInput = {
     horas_facturadas?: number | null;
     horas_trabajadas?: number | null;
     valor_hora_empleado?: number | null;
+    descuento?: number;
     categoria_arreglo_id?: string | null;
     empleado_id?: string | null;
   }>;
@@ -46,6 +47,7 @@ export type CreateArregloInput = {
     stock_id: string;
     cantidad: number;
     monto_unitario: number;
+    descuento?: number;
     precio_compra?: number | null;
     categoria_arreglo_id?: string | null;
     empleado_id?: string | null;
@@ -258,6 +260,7 @@ export const arreglosClient = {
       horas_facturadas?: number | null;
       horas_trabajadas?: number | null;
       valor_hora_empleado?: number | null;
+      descuento?: number;
       categoria_arreglo_id?: string | null;
       empleado_id?: string | null;
     }
@@ -289,6 +292,7 @@ export const arreglosClient = {
       horas_facturadas: number | null;
       horas_trabajadas: number | null;
       valor_hora_empleado?: number | null;
+      descuento?: number;
       categoria_arreglo_id: string | null;
       empleado_id: string | null;
     }>

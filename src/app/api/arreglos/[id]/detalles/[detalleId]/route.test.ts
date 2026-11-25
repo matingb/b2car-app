@@ -76,4 +76,35 @@ describe("PUT /api/arreglos/[id]/detalles/[detalleId]", () => {
     );
     expect(statsService.onDataChanged).toHaveBeenCalled();
   });
+
+  it("actualiza el descuento correctamente en la línea", async () => {
+    const response = await PUT(request({ descuento: 1500 }), params);
+
+    expect(response.status).toBe(200);
+    expect(detalleArregloService.updateById).toHaveBeenCalledWith(
+      expect.anything(),
+      "ARR-1",
+      "DET-1",
+      { descuento: 1500 },
+    );
+  });
+
+  it("permite resetear el descuento a 0", async () => {
+    const response = await PUT(request({ descuento: 0 }), params);
+
+    expect(response.status).toBe(200);
+    expect(detalleArregloService.updateById).toHaveBeenCalledWith(
+      expect.anything(),
+      "ARR-1",
+      "DET-1",
+      { descuento: 0 },
+    );
+  });
+
+  it("rechaza descuento negativo", async () => {
+    const response = await PUT(request({ descuento: -100 }), params);
+
+    expect(response.status).toBe(400);
+    expect(detalleArregloService.updateById).not.toHaveBeenCalled();
+  });
 });

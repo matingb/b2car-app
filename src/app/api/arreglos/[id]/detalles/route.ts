@@ -17,6 +17,7 @@ export type CreateDetalleArregloRequest = {
   horas_facturadas?: number | null;
   horas_trabajadas?: number | null;
   valor_hora_empleado?: number | null;
+  descuento?: number | null;
   categoria_arreglo_id?: string | null;
   empleado_id?: string | null;
 };
@@ -30,6 +31,9 @@ export type DetalleArregloResponseRow = {
   horas_facturadas: number | null;
   horas_trabajadas: number | null;
   valor_hora_empleado?: number | null;
+  subtotal?: number;
+  descuento?: number;
+  total?: number;
   categoria_arreglo_id: string | null;
   empleado_id: string | null;
   created_at: string;
@@ -61,6 +65,8 @@ export async function POST(
   const horasFacturadas = body.horas_facturadas != null ? Number(body.horas_facturadas) : 1;
   const horasTrabajadas = body.horas_trabajadas != null ? Number(body.horas_trabajadas) : 1;
   const valorHoraEmpleado = body.valor_hora_empleado == null ? null : Number(body.valor_hora_empleado);
+  const descuentoRaw = body.descuento;
+  const descuento = descuentoRaw != null ? Number(descuentoRaw) : 0;
   const categoriaArregloIdRaw = body.categoria_arreglo_id;
   const empleadoIdRaw = body.empleado_id;
 
@@ -91,6 +97,12 @@ export async function POST(
   if (precioHoraFacturada !== undefined && !(await hasUserPermission(supabase, Permission.ArreglosPreciosEdit))) {
     return Response.json({ data: null, error: "No tenés permiso para modificar precios" } satisfies CreateDetalleArregloResponse, { status: 403 });
   }
+  if (!Number.isFinite(descuento) || descuento < 0 || !hasAtMostDecimalPlaces(descuento)) {
+    return Response.json({ data: null, error: "Descuento inválido" } satisfies CreateDetalleArregloResponse, { status: 400 });
+  }
+  if (descuentoRaw !== undefined && descuentoRaw !== null && !(await hasUserPermission(supabase, Permission.ArreglosPreciosEdit))) {
+    return Response.json({ data: null, error: "No tenés permiso para modificar precios" } satisfies CreateDetalleArregloResponse, { status: 403 });
+  }
   if (valorHoraEmpleado !== null && (!Number.isFinite(valorHoraEmpleado) || valorHoraEmpleado < 0 || valorHoraEmpleado > 9_999_999_999.99 || !hasAtMostDecimalPlaces(valorHoraEmpleado))) {
     return Response.json({ data: null, error: "Valor hora del empleado invÃ¡lido" } satisfies CreateDetalleArregloResponse, { status: 400 });
   }
@@ -112,6 +124,7 @@ export async function POST(
     horas_facturadas: horasFacturadas,
     horas_trabajadas: horasTrabajadas,
     valor_hora_empleado: valorHoraEmpleado,
+    descuento,
     categoria_arreglo_id: categoriaArregloIdRaw ?? null,
     empleado_id: empleadoIdRaw ?? null,
   });

@@ -17,6 +17,7 @@ export type UpdateDetalleArregloRequest = Partial<{
   horas_facturadas: number | null;
   horas_trabajadas: number | null;
   valor_hora_empleado?: number | null;
+  descuento?: number;
   categoria_arreglo_id: string | null;
   empleado_id: string | null;
 }>;
@@ -29,6 +30,10 @@ export type DetalleArregloResponseRow = {
   precio_hora_facturada: number;
   horas_facturadas: number | null;
   horas_trabajadas: number | null;
+  valor_hora_empleado?: number | null;
+  subtotal?: number;
+  descuento?: number;
+  total?: number;
   categoria_arreglo_id: string | null;
   empleado_id: string | null;
   created_at: string;
@@ -89,6 +94,17 @@ export async function PUT(
       return Response.json({ data: null, error: "Precio hora facturada inválido" } satisfies UpdateDetalleArregloResponse, { status: 400 });
     }
     patch.precio_hora_facturada = precio;
+  }
+
+  if (body.descuento !== undefined) {
+    if (!(await hasUserPermission(supabase, Permission.ArreglosPreciosEdit))) {
+      return Response.json({ data: null, error: "No tenés permiso para modificar precios" } satisfies UpdateDetalleArregloResponse, { status: 403 });
+    }
+    const descuento = Number(body.descuento);
+    if (!Number.isFinite(descuento) || descuento < 0 || !hasAtMostDecimalPlaces(descuento)) {
+      return Response.json({ data: null, error: "Descuento inválido" } satisfies UpdateDetalleArregloResponse, { status: 400 });
+    }
+    patch.descuento = Math.max(0, descuento);
   }
 
   if (body.horas_facturadas !== undefined) {

@@ -389,7 +389,7 @@ export function buildArregloPrintableInvoiceHtml({
     </section>
 
     ${showPrices ? `<div class="bottom-totals">
-      ${showDiscounts && totalDescuento > 0 ? `<div class="total-box"><span>Subtotal bruto</span><span class="money">${formatMoney(subtotalBrutoTotal)}</span></div>
+      ${showDiscounts && totalDescuento > 0 ? `<div class="total-box"><span>Subtotal</span><span class="money">${formatMoney(subtotalBrutoTotal)}</span></div>
       <div class="total-box"><span>Descuento</span><span class="money">-${formatMoney(totalDescuento)}</span></div>` : ""}
       ${ivaComercial === null ? "" : `<div class="total-box"><span>Subtotal</span><span class="money">${formatMoney(subtotalIngresado)}</span></div>
       <div class="total-box"><span>IVA</span><span class="money">${formatMoney(ivaComercial)}</span></div>`}

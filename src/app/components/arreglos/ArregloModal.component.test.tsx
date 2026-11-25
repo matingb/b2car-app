@@ -191,4 +191,58 @@ describe("ArregloModal - toggle de IVA", () => {
 
     expect(screen.getByTestId("arreglo-vehiculo-autocomplete")).toBeInTheDocument();
   });
+
+  it("al crear un arreglo con descuento en una línea, el modal actualiza el total y envía precio_final con descuento", async () => {
+    mocks.create.mockResolvedValue({
+      id: "arr-created",
+      precio_final: 8000,
+      esta_pago: false,
+    });
+    mocks.confirm.mockResolvedValue(false);
+
+    const onClose = vi.fn();
+
+    render(
+      <ArregloModal
+        open={true}
+        vehiculoId="veh-1"
+        onClose={onClose}
+      />
+    );
+
+    // Agregar un servicio con descuento
+    fireEvent.click(screen.getByRole("button", { name: /agregar mano de obra/i }));
+
+    fireEvent.change(screen.getByLabelText("Descripción"), { target: { value: "Alineación y balanceo" } });
+    fireEvent.change(screen.getByLabelText("Precio venta"), { target: { value: "10000" } });
+    fireEvent.change(screen.getByLabelText("Descuento"), { target: { value: "2000" } });
+
+    fireEvent.click(screen.getByRole("button", { name: "agregar servicio" }));
+
+    // El total del modal debe mostrar $8.000 (y desglose con Subtotal y Descuento)
+    expect(screen.getByText(/Subtotal:\s*\$10\.000/)).toBeInTheDocument();
+    expect(screen.getByText(/Descuento:\s*-\$2\.000/)).toBeInTheDocument();
+    expect(screen.getAllByText("$8.000").length).toBeGreaterThanOrEqual(2);
+
+    // Guardar (crear arreglo)
+    const submitBtn = screen.getByRole("button", { name: "Crear" });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(mocks.create).toHaveBeenCalledTimes(1);
+    });
+
+    // Debe enviar precio_final: 8000 (no 10000)
+    expect(mocks.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        precio_final: 8000,
+        detalles: [
+          expect.objectContaining({
+            descripcion: "Alineación y balanceo",
+            descuento: 2000,
+          }),
+        ],
+      })
+    );
+  });
 });

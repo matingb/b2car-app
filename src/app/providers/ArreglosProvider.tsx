@@ -48,6 +48,7 @@ type ArreglosContextType = {
       horas_facturadas?: number | null;
       horas_trabajadas?: number | null;
       valor_hora_empleado?: number | null;
+      descuento?: number;
       categoria_arreglo_id?: string | null;
       empleado_id?: string | null;
     }
@@ -62,6 +63,7 @@ type ArreglosContextType = {
       horas_facturadas: number | null;
       horas_trabajadas: number | null;
       valor_hora_empleado?: number | null;
+      descuento?: number;
       categoria_arreglo_id: string | null;
       empleado_id: string | null;
     }>
@@ -194,6 +196,7 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
       horas_facturadas?: number | null;
       horas_trabajadas?: number | null;
       valor_hora_empleado?: number | null;
+      descuento?: number;
       categoria_arreglo_id?: string | null;
       empleado_id?: string | null;
     }
@@ -217,6 +220,8 @@ export function ArreglosProvider({ children }: { children: React.ReactNode }) {
       precio_hora_facturada: number;
       horas_facturadas: number | null;
       horas_trabajadas: number | null;
+      valor_hora_empleado?: number | null;
+      descuento?: number;
       categoria_arreglo_id: string | null;
       empleado_id: string | null;
     }>

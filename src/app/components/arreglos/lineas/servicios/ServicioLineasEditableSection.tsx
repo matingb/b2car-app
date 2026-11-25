@@ -168,7 +168,7 @@ export default function ServicioLineasEditableSection({
           horasFacturadas,
           horasTrabajadas,
           precioHoraFacturada,
-          ...(descuento > 0 ? { descuento } : {}),
+          ...(descuento > 0 || ctx.mode === "edit" ? { descuento } : {}),
           ...(shouldUpdateEmployeeRate ? { valorHoraEmpleado } : {}),
           categoriaArregloId: d.categoriaArregloId,
           empleadoId: d.empleadoId,
