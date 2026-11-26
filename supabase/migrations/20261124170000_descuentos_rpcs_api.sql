@@ -872,9 +872,16 @@ BEGIN
 END;
 $function$;
 
--- 13. _crear_operacion_con_stock y rpc_crear_operacion_con_stock: descuento en líneas y p_precios_incluyen_iva
+-- 13. _crear_operacion_con_stock y rpc_crear_operacion_con_stock: descuento en líneas, cargos y p_precios_incluyen_iva
 DROP FUNCTION IF EXISTS public._crear_operacion_con_stock(public.tipo_operacion, uuid, jsonb, uuid, uuid, jsonb, timestamp with time zone, uuid, text, text, numeric, boolean, uuid, uuid);
+DROP FUNCTION IF EXISTS public._crear_operacion_con_stock(public.tipo_operacion, uuid, jsonb, uuid, uuid, jsonb, timestamp with time zone, uuid, text, text, numeric, boolean, uuid, uuid, boolean);
+DROP FUNCTION IF EXISTS public._crear_operacion_con_stock(public.tipo_operacion, uuid, jsonb, uuid, uuid, jsonb, timestamp with time zone, uuid, text, text, numeric, boolean, uuid, uuid, jsonb);
+DROP FUNCTION IF EXISTS public._crear_operacion_con_stock(public.tipo_operacion, uuid, jsonb, uuid, uuid, jsonb, timestamp with time zone, uuid, text, text, numeric, boolean, uuid, uuid, jsonb, boolean);
+
 DROP FUNCTION IF EXISTS public.rpc_crear_operacion_con_stock(public.tipo_operacion, uuid, jsonb, uuid, uuid, jsonb, timestamp with time zone, uuid, text, text, numeric, boolean, uuid, uuid);
+DROP FUNCTION IF EXISTS public.rpc_crear_operacion_con_stock(public.tipo_operacion, uuid, jsonb, uuid, uuid, jsonb, timestamp with time zone, uuid, text, text, numeric, boolean, uuid, uuid, boolean);
+DROP FUNCTION IF EXISTS public.rpc_crear_operacion_con_stock(public.tipo_operacion, uuid, jsonb, uuid, uuid, jsonb, timestamp with time zone, uuid, text, text, numeric, boolean, uuid, uuid, jsonb);
+DROP FUNCTION IF EXISTS public.rpc_crear_operacion_con_stock(public.tipo_operacion, uuid, jsonb, uuid, uuid, jsonb, timestamp with time zone, uuid, text, text, numeric, boolean, uuid, uuid, jsonb, boolean);
 
 CREATE OR REPLACE FUNCTION public._crear_operacion_con_stock (
   p_tipo                 public.tipo_operacion,
@@ -891,6 +898,7 @@ CREATE OR REPLACE FUNCTION public._crear_operacion_con_stock (
   p_mover_stock          boolean                  DEFAULT true,
   p_proveedor_id         uuid                     DEFAULT NULL::uuid,
   p_cliente_id           uuid                     DEFAULT NULL::uuid,
+  p_cargos               jsonb                    DEFAULT NULL::jsonb,
   p_precios_incluyen_iva boolean                  DEFAULT true
 )
   RETURNS uuid
@@ -922,6 +930,7 @@ DECLARE
   v_iva_alicuota       smallint;
   v_cantidad_cumpl     integer;
   v_fecha              timestamp with time zone := COALESCE(p_fecha, now());
+  v_total_cargos       numeric := 0;
 BEGIN
   IF v_tenant_id IS NULL THEN
     RAISE EXCEPTION 'JWT sin tenant_id' USING ERRCODE = '28000';
@@ -940,6 +949,14 @@ BEGIN
     RAISE EXCEPTION 'Tipo de operación inválido para operaciones con stock: %', p_tipo USING ERRCODE = '22023';
   END IF;
 
+  -- Cargos: se validan antes de crear nada para no dejar operaciones a medias.
+  IF p_cargos IS NOT NULL THEN
+    v_total_cargos := public._validar_y_sumar_cargos_operacion(p_cargos);
+    IF v_total_cargos > 0 AND p_tipo <> 'COMPRA' THEN
+      RAISE EXCEPTION 'Solo las compras admiten cargos' USING ERRCODE = '22023';
+    END IF;
+  END IF;
+
   v_sentido := CASE WHEN p_tipo = 'COMPRA' THEN 1::smallint ELSE -1::smallint END;
 
   IF p_lineas IS NOT NULL AND jsonb_array_length(p_lineas) > 0 THEN
@@ -949,6 +966,8 @@ BEGIN
     INTO v_monto_total
     FROM jsonb_array_elements(p_lineas) AS elem;
   END IF;
+
+  v_monto_total := v_monto_total + v_total_cargos;
 
   INSERT INTO public.operaciones (
     tenant_id, taller_id, tipo, fecha, monto_total, observaciones
@@ -965,6 +984,10 @@ BEGIN
   ELSIF p_tipo = 'ASIGNACION_ARREGLO' THEN
     INSERT INTO public.operaciones_asignacion_arreglo (operacion_id, tenant_id, arreglo_id)
     VALUES (v_operacion_id, v_tenant_id, p_arreglo_id);
+  END IF;
+
+  IF v_total_cargos > 0 THEN
+    PERFORM public._guardar_cargos_operacion(v_tenant_id, v_operacion_id, p_cargos);
   END IF;
 
   -- Insertar líneas ordenadas por stock_id (Lock ordering)
@@ -1076,6 +1099,7 @@ CREATE OR REPLACE FUNCTION public.rpc_crear_operacion_con_stock (
   p_mover_stock          boolean                  DEFAULT true,
   p_proveedor_id         uuid                     DEFAULT NULL::uuid,
   p_cliente_id           uuid                     DEFAULT NULL::uuid,
+  p_cargos               jsonb                    DEFAULT NULL::jsonb,
   p_precios_incluyen_iva boolean                  DEFAULT true
 )
   RETURNS uuid
@@ -1103,17 +1127,18 @@ BEGIN
     p_mover_stock := p_mover_stock,
     p_proveedor_id := p_proveedor_id,
     p_cliente_id := p_cliente_id,
+    p_cargos := p_cargos,
     p_precios_incluyen_iva := p_precios_incluyen_iva
   );
 END;
 $function$;
 
-REVOKE ALL ON FUNCTION public._crear_operacion_con_stock(public.tipo_operacion, uuid, jsonb, uuid, uuid, jsonb, timestamp with time zone, uuid, text, text, numeric, boolean, uuid, uuid, boolean) FROM PUBLIC;
-GRANT ALL ON FUNCTION public._crear_operacion_con_stock(public.tipo_operacion, uuid, jsonb, uuid, uuid, jsonb, timestamp with time zone, uuid, text, text, numeric, boolean, uuid, uuid, boolean) TO service_role;
+REVOKE ALL ON FUNCTION public._crear_operacion_con_stock(public.tipo_operacion, uuid, jsonb, uuid, uuid, jsonb, timestamp with time zone, uuid, text, text, numeric, boolean, uuid, uuid, jsonb, boolean) FROM PUBLIC;
+GRANT ALL ON FUNCTION public._crear_operacion_con_stock(public.tipo_operacion, uuid, jsonb, uuid, uuid, jsonb, timestamp with time zone, uuid, text, text, numeric, boolean, uuid, uuid, jsonb, boolean) TO service_role;
 
-REVOKE ALL ON FUNCTION public.rpc_crear_operacion_con_stock(public.tipo_operacion, uuid, jsonb, uuid, uuid, jsonb, timestamp with time zone, uuid, text, text, numeric, boolean, uuid, uuid, boolean) FROM PUBLIC;
-GRANT ALL ON FUNCTION public.rpc_crear_operacion_con_stock(public.tipo_operacion, uuid, jsonb, uuid, uuid, jsonb, timestamp with time zone, uuid, text, text, numeric, boolean, uuid, uuid, boolean) TO authenticated;
-GRANT ALL ON FUNCTION public.rpc_crear_operacion_con_stock(public.tipo_operacion, uuid, jsonb, uuid, uuid, jsonb, timestamp with time zone, uuid, text, text, numeric, boolean, uuid, uuid, boolean) TO service_role;
+REVOKE ALL ON FUNCTION public.rpc_crear_operacion_con_stock(public.tipo_operacion, uuid, jsonb, uuid, uuid, jsonb, timestamp with time zone, uuid, text, text, numeric, boolean, uuid, uuid, jsonb, boolean) FROM PUBLIC;
+GRANT ALL ON FUNCTION public.rpc_crear_operacion_con_stock(public.tipo_operacion, uuid, jsonb, uuid, uuid, jsonb, timestamp with time zone, uuid, text, text, numeric, boolean, uuid, uuid, jsonb, boolean) TO authenticated;
+GRANT ALL ON FUNCTION public.rpc_crear_operacion_con_stock(public.tipo_operacion, uuid, jsonb, uuid, uuid, jsonb, timestamp with time zone, uuid, text, text, numeric, boolean, uuid, uuid, jsonb, boolean) TO service_role;
 
 -- 14. Nueva RPC: rpc_actualizar_descuentos_operacion
 CREATE OR REPLACE FUNCTION public.rpc_actualizar_descuentos_operacion (

@@ -27,6 +27,7 @@ vi.mock("../operacionesService", async () => {
 			update: vi.fn(),
 			getById: vi.fn(),
 			deleteById: vi.fn(),
+			actualizarDescuentos: vi.fn(),
 		},
 	};
 });
@@ -90,18 +91,18 @@ describe("/api/operaciones/[id]", () => {
 		expect(statsService.onDataChanged).toHaveBeenCalledWith(expect.anything(), "TEN-1");
 	});
 
-	it("PUT rechaza intentar editar las líneas con 400", async () => {
+	it("PUT rechaza intentar editar campos no permitidos con 400", async () => {
 		const req = new NextRequest("http://localhost/api/operaciones/op-1", {
 			method: "PUT",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ lineas: [{ stock_id: "s1", cantidad: 5 }] }),
+			body: JSON.stringify({ monto_total: 1000 }),
 		});
 
 		const res = await PUT(req, { params: Promise.resolve({ id: "op-1" }) });
 		const body = await res.json();
 
 		expect(res.status).toBe(400);
-		expect(body.error).toContain("lineas");
+		expect(body.error).toContain("monto_total");
 		expect(vi.mocked(operacionesService.update)).not.toHaveBeenCalled();
 	});
 

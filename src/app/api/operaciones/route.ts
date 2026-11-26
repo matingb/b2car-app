@@ -202,7 +202,7 @@ export async function POST(req: Request) {
 		try {
 			ivaCompra = calcularIvaTotalDesdeBases((body.lineas ?? []).map((linea, index) => ({
 				key: String(index),
-				importe: (Number(linea.cantidad) || 0) * (Number(linea.monto_unitario) || 0),
+				importe: Math.max(0, (Number(linea.cantidad) || 0) * (Number(linea.monto_unitario) || 0) - (Number(linea.descuento) || 0)),
 				ivaAlicuotaId: linea.iva_alicuota_id ?? 5,
 			})));
 		} catch {
@@ -210,7 +210,7 @@ export async function POST(req: Request) {
 		}
 	}
 	const importeLineas = (body.lineas ?? []).reduce(
-		(sum, l) => sum + (Number(l.cantidad) || 0) * (Number(l.monto_unitario) || 0),
+		(sum, l) => sum + Math.max(0, (Number(l.cantidad) || 0) * (Number(l.monto_unitario) || 0) - (Number(l.descuento) || 0)),
 		0
 	);
 	const importeTotal = body.tipo === "GASTO"

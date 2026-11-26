@@ -56,7 +56,7 @@ const baseValues: ArregloFormFieldsValues = {
 };
 
 describe("ArregloFormFields permissions", () => {
-  it("muestra ¿Esta pago? y Total calculado para un rol admin", () => {
+  it("muestra ¿Esta pago? y Total para un rol admin", () => {
     render(
       <TenantTestProvider
         hasPermission={mockHasPermission(UserRole.Admin)}
@@ -75,10 +75,10 @@ describe("ArregloFormFields permissions", () => {
     );
 
     expect(screen.getByText("¿Esta pago?")).toBeInTheDocument();
-    expect(screen.getByText("Total calculado")).toBeInTheDocument();
+    expect(screen.getByText("Total")).toBeInTheDocument();
   });
 
-  it("oculta ¿Esta pago? y Total calculado para un rol operativo", () => {
+  it("oculta ¿Esta pago? y Total para un rol operativo", () => {
     render(
       <TenantTestProvider
         hasPermission={mockHasPermission(UserRole.Operativo)}
@@ -97,7 +97,7 @@ describe("ArregloFormFields permissions", () => {
     );
 
     expect(screen.queryByText("¿Esta pago?")).not.toBeInTheDocument();
-    expect(screen.queryByText("Total calculado")).not.toBeInTheDocument();
+    expect(screen.queryByText("Total")).not.toBeInTheDocument();
   });
 });
 
@@ -146,10 +146,11 @@ describe("ArregloFormFields switches", () => {
     expect(screen.getByTestId("toggle-iva")).toBeDisabled();
   });
 
-  it("indica que el total calculado incluye IVA cuando los precios son sin IVA", () => {
+  it("muestra Total sin la leyenda de IVA incluido cuando los precios son sin IVA", () => {
     renderFields({ values: { ...baseValues, preciosIncluyenIva: false } });
 
-    expect(screen.getByText("Total calculado (IVA incluido)")).toBeInTheDocument();
+    expect(screen.getByText("Total")).toBeInTheDocument();
+    expect(screen.queryByText(/IVA incluido/i)).not.toBeInTheDocument();
   });
 });
 
@@ -326,6 +327,65 @@ describe("ArregloFormFields selector de estado", () => {
           descuento: 2000,
           totalCalculado: 8000,
           totalCalculadoLabel: "$8.000",
+        })
+      );
+    });
+
+    it("cuando precios no incluyen IVA (Sumar IVA), el desglose muestra subtotal y descuento sin IVA, línea extra de IVA y total calculado con IVA", async () => {
+      const onChange = vi.fn();
+      render(
+        <TenantTestProvider hasPermission={mockHasPermission(UserRole.Admin)}>
+          <ArregloFormFields
+            vehiculoId="veh-1"
+            vehiculoOptions={[]}
+            isEdit={false}
+            showFacturable={true}
+            submitting={false}
+            tallerId="taller-1"
+            values={{ ...baseValues, preciosIncluyenIva: false }}
+            onValuesChange={vi.fn()}
+            onChange={onChange}
+          />
+        </TenantTestProvider>
+      );
+
+      // Agregar servicio de $50.000 con descuento de $5.000
+      const addServiceBtn = screen.getByRole("button", { name: /agregar mano de obra/i });
+      fireEvent.click(addServiceBtn);
+
+      const descInput = screen.getByLabelText("Descripción");
+      fireEvent.change(descInput, { target: { value: "Service general" } });
+
+      const priceInput = screen.getByLabelText("Precio venta");
+      fireEvent.change(priceInput, { target: { value: "50000" } });
+
+      const descMontoInput = screen.getByLabelText("Descuento");
+      fireEvent.change(descMontoInput, { target: { value: "5000" } });
+
+      const confirmBtn = screen.getByRole("button", { name: "agregar servicio" });
+      fireEvent.click(confirmBtn);
+
+      // El subtotal y descuento NO deben tener IVA aplicado:
+      // Subtotal: $50.000 (no $60.500)
+      // Descuento: -$5.000 (no -$6.050)
+      // IVA: $9.450 (21% sobre $45.000)
+      // Total: $54.450
+      expect(screen.getByText(/Subtotal:\s*\$50\.000/)).toBeInTheDocument();
+      expect(screen.getByText(/Descuento:\s*-\$5\.000/)).toBeInTheDocument();
+      expect(screen.getByText(/IVA:\s*\$9\.450/)).toBeInTheDocument();
+      expect(screen.getByText("Total")).toBeInTheDocument();
+      expect(screen.queryByText(/calculado/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/IVA incluido/i)).not.toBeInTheDocument();
+      expect(screen.getByText("$54.450")).toBeInTheDocument();
+
+      // Debe notificar al snapshot con los importes correctos
+      expect(onChange).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          subtotalServicios: 45000,
+          subtotal: 50000,
+          descuento: 5000,
+          totalCalculado: 54450,
+          totalCalculadoLabel: "$54.450",
         })
       );
     });

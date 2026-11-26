@@ -31,6 +31,19 @@ export default function ArregloTotalsFooter({
   const isFullyPaid = hasCobros && totalCobrado >= total && total > 0;
   const effectiveSaldo = saldoPendiente != null ? saldoPendiente : Math.max(0, total - (totalCobrado || 0));
 
+  const hasDescuento = descuento != null && descuento > 0;
+  const hasIva = !preciosIncluyenIva && precioSinIva != null;
+  const montoIva = hasIva ? Math.max(0, total - precioSinIva) : 0;
+  const hasBreakdown = (hasDescuento || hasIva) && ((subtotal != null && subtotal > 0) || total > 0);
+  const displaySubtotal =
+    subtotal != null
+      ? subtotal
+      : hasIva
+        ? hasDescuento
+          ? precioSinIva + descuento
+          : precioSinIva
+        : null;
+
   return (
     <div style={styles.totalFooter}>
       <div style={styles.totalsRow}>
@@ -58,17 +71,25 @@ export default function ArregloTotalsFooter({
         </div>
 
         <div style={{ textAlign: "right" }}>
-          {descuento != null && descuento > 0 && subtotal != null && (
+          {hasBreakdown && (
             <div style={{ fontSize: 13, marginBottom: 4, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
-              <span style={{ color: COLOR.TEXT.SECONDARY }}>
-                Subtotal: {formatArs(subtotal, { maxDecimals: 0, minDecimals: 0 })}
-              </span>
-              <span style={{ color: COLOR.STATUS.WARNING.TEXT, fontWeight: 600 }}>
-                Descuento: -{formatArs(descuento, { maxDecimals: 0, minDecimals: 0 })}
-              </span>
+              {displaySubtotal != null && (
+                <span style={{ color: COLOR.TEXT.SECONDARY }}>
+                  Subtotal: {formatArs(displaySubtotal, { maxDecimals: 0, minDecimals: 0 })}
+                </span>
+              )}
+              {hasDescuento && (
+                <span style={{ color: COLOR.STATUS.WARNING.TEXT, fontWeight: 600 }}>
+                  Descuento: -{formatArs(descuento, { maxDecimals: 0, minDecimals: 0 })}
+                </span>
+              )}
+              {hasIva && (
+                <span style={{ color: COLOR.TEXT.SECONDARY }}>
+                  IVA: {formatArs(montoIva, { maxDecimals: 0, minDecimals: 0 })}
+                </span>
+              )}
             </div>
           )}
-          {!preciosIncluyenIva && precioSinIva != null && <div style={{ color: COLOR.TEXT.SECONDARY }}>IVA: {formatArs(total - precioSinIva)}</div>}
           <div style={{ color: COLOR.TEXT.SECONDARY }}>Total del arreglo</div>
           <div style={styles.totalBig}>
             {formatArs(total, {

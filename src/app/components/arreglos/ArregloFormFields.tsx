@@ -202,18 +202,14 @@ export default function ArregloFormFields({
       serviciosActivos.reduce(
         (acc, s) =>
           acc +
-          importeComercial(
-            calcLineSubtotal({
-              cantidad: s.cantidad,
-              horas_facturadas: s.horasFacturadas,
-              precio_hora_facturada: s.precioHoraFacturada,
-            }),
-            preciosIncluyenIva,
-            IVA_RATE,
-          ),
+          calcLineSubtotal({
+            cantidad: s.cantidad,
+            horas_facturadas: s.horasFacturadas,
+            precio_hora_facturada: s.precioHoraFacturada,
+          }),
         0
       ),
-    [serviciosActivos, preciosIncluyenIva]
+    [serviciosActivos]
   );
 
   const subtotalServicios = useMemo(
@@ -221,19 +217,15 @@ export default function ArregloFormFields({
       serviciosActivos.reduce(
         (acc, s) =>
           acc +
-          importeComercial(
-            calcLineTotal({
-              cantidad: s.cantidad,
-              horas_facturadas: s.horasFacturadas,
-              precio_hora_facturada: s.precioHoraFacturada,
-              descuento: s.descuento || 0,
-            }),
-            preciosIncluyenIva,
-            IVA_RATE,
-          ),
+          calcLineTotal({
+            cantidad: s.cantidad,
+            horas_facturadas: s.horasFacturadas,
+            precio_hora_facturada: s.precioHoraFacturada,
+            descuento: s.descuento || 0,
+          }),
         0
       ),
-    [serviciosActivos, preciosIncluyenIva]
+    [serviciosActivos]
   );
 
   const subtotalRepuestosBruto = useMemo(
@@ -241,18 +233,14 @@ export default function ArregloFormFields({
       repuestosDraft.reduce(
         (acc, r) =>
           acc +
-          importeComercial(
-            calcLineSubtotal({
-              cantidad: r.cantidad,
-              horas_facturadas: null,
-              precio_hora_facturada: r.monto_unitario,
-            }),
-            preciosIncluyenIva,
-            IVA_RATE,
-          ),
+          calcLineSubtotal({
+            cantidad: r.cantidad,
+            horas_facturadas: null,
+            precio_hora_facturada: r.monto_unitario,
+          }),
         0
       ),
-    [repuestosDraft, preciosIncluyenIva]
+    [repuestosDraft]
   );
 
   const subtotalRepuestos = useMemo(
@@ -260,26 +248,64 @@ export default function ArregloFormFields({
       repuestosDraft.reduce(
         (acc, r) =>
           acc +
-          importeComercial(
-            r.total != null
-              ? r.total
-              : calcLineTotal({
-                  cantidad: r.cantidad,
-                  horas_facturadas: null,
-                  precio_hora_facturada: r.monto_unitario,
-                  descuento: r.descuento || 0,
-                }),
-            preciosIncluyenIva,
-            IVA_RATE,
-          ),
+          (r.total != null
+            ? r.total
+            : calcLineTotal({
+                cantidad: r.cantidad,
+                horas_facturadas: null,
+                precio_hora_facturada: r.monto_unitario,
+                descuento: r.descuento || 0,
+              })),
         0,
       ),
-    [repuestosDraft, preciosIncluyenIva],
+    [repuestosDraft],
   );
 
   const subtotalBruto = subtotalServiciosBruto + subtotalRepuestosBruto;
-  const totalCalculado = subtotalServicios + subtotalRepuestos;
-  const descuentoTotal = Math.max(0, subtotalBruto - totalCalculado);
+  const subtotalNeto = subtotalServicios + subtotalRepuestos;
+  const descuentoTotal = Math.max(0, subtotalBruto - subtotalNeto);
+
+  const totalCalculado = useMemo(() => {
+    if (preciosIncluyenIva) return subtotalNeto;
+    const servCommercial = serviciosActivos.reduce(
+      (acc, s) =>
+        acc +
+        importeComercial(
+          calcLineTotal({
+            cantidad: s.cantidad,
+            horas_facturadas: s.horasFacturadas,
+            precio_hora_facturada: s.precioHoraFacturada,
+            descuento: s.descuento || 0,
+          }),
+          false,
+          IVA_RATE,
+        ),
+      0,
+    );
+    const repCommercial = repuestosDraft.reduce(
+      (acc, r) =>
+        acc +
+        importeComercial(
+          r.total != null
+            ? r.total
+            : calcLineTotal({
+                cantidad: r.cantidad,
+                horas_facturadas: null,
+                precio_hora_facturada: r.monto_unitario,
+                descuento: r.descuento || 0,
+              }),
+          false,
+          IVA_RATE,
+        ),
+      0,
+    );
+    return servCommercial + repCommercial;
+  }, [preciosIncluyenIva, subtotalNeto, serviciosActivos, repuestosDraft]);
+
+  const montoIva = useMemo(() => {
+    if (preciosIncluyenIva) return 0;
+    return Math.max(0, totalCalculado - subtotalNeto);
+  }, [preciosIncluyenIva, totalCalculado, subtotalNeto]);
 
   const subtotalBrutoLabel = useMemo(
     () => formatArs(subtotalBruto, { maxDecimals: 2, minDecimals: 0 }),
@@ -288,6 +314,10 @@ export default function ArregloFormFields({
   const descuentoTotalLabel = useMemo(
     () => formatArs(descuentoTotal, { maxDecimals: 2, minDecimals: 0 }),
     [descuentoTotal]
+  );
+  const ivaCalculadoLabel = useMemo(
+    () => formatArs(montoIva, { maxDecimals: 2, minDecimals: 0 }),
+    [montoIva]
   );
   const totalCalculadoLabel = useMemo(
     () => formatArs(totalCalculado, { maxDecimals: 2, minDecimals: 0 }),
@@ -479,20 +509,25 @@ export default function ArregloFormFields({
 
           <Can permission={Permission.ArreglosPreciosView}>
             <div style={stylesModal.totalContainer}>
-              {descuentoTotal > 0 && (
+              {(descuentoTotal > 0 || !preciosIncluyenIva) && subtotalBruto > 0 && (
                 <div style={stylesModal.discountBreakdown}>
                   <span style={stylesModal.subtotalLabel}>
                     Subtotal: {subtotalBrutoLabel}
                   </span>
-                  <span style={stylesModal.descuentoLabel}>
-                    Descuento: -{descuentoTotalLabel}
-                  </span>
+                  {descuentoTotal > 0 && (
+                    <span style={stylesModal.descuentoLabel}>
+                      Descuento: -{descuentoTotalLabel}
+                    </span>
+                  )}
+                  {!preciosIncluyenIva && (
+                    <span style={stylesModal.ivaLabel}>
+                      IVA: {ivaCalculadoLabel}
+                    </span>
+                  )}
                 </div>
               )}
               <div style={stylesModal.totalRow}>
-                <span style={stylesModal.totalLabel}>
-                  {preciosIncluyenIva ? "Total calculado" : "Total calculado (IVA incluido)"}
-                </span>
+                <span style={stylesModal.totalLabel}>Total</span>
                 <span style={stylesModal.totalValue}>{totalCalculadoLabel}</span>
               </div>
             </div>
@@ -695,6 +730,9 @@ const stylesModal = {
   descuentoLabel: {
     color: COLOR.STATUS.WARNING.TEXT,
     fontWeight: 600,
+  },
+  ivaLabel: {
+    color: COLOR.TEXT.SECONDARY,
   },
   totalRow: {
     display: "flex",
